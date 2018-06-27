@@ -1,0 +1,7 @@
+#ifndef SHADER_CONFIG_H
+#define SHADER_CONFIG_H
+
+#define VERTEX_SHADER	1
+#define FRAGMENT_SHADER 2
+
+#endif
