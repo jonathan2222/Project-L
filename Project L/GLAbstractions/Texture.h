@@ -8,6 +8,7 @@
 class Texture
 {
 public:
+	Texture();
 	Texture(const ResourceManager::Image* image = nullptr);
 	~Texture();
 
@@ -16,7 +17,8 @@ public:
 	void bind() const;
 	void unbind() const;
 
-	void loadImage(const ResourceManager::Image* image) const;
+	void loadImage(const ResourceManager::Image* image);
+	void releaseImage();
 
 private:
 	GLuint id;

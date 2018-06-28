@@ -13,6 +13,7 @@ public:
 
 	void bindShader(const Shader* shader = nullptr) const;
 	void draw(const VertexArray& va, const IndexBuffer& ib) const;
+	void drawInstanced(const VertexArray& va, const IndexBuffer& ib, GLsizei instanceCount) const;
 
 	Shader* getDefaultShader() const;
 

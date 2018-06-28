@@ -10,13 +10,15 @@ public:
 	VertexArray();
 	~VertexArray();
 
-	void addBuffer(const VertexBuffer& vertexBuffer, const VertexBufferLayout& layout);
+	void addBuffer(const VertexBuffer& vertexBuffer, const VertexBufferLayout& layout, bool instanced = false);
 
 	void bind() const;
 	void unbind() const;
 
 private:
 	unsigned int id;
+	unsigned int offset;
+	unsigned int nextLocation;
 };
 
 #endif

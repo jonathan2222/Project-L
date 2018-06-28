@@ -1,8 +1,8 @@
 #version 330
 in vec2 position;
 in vec2 uv;
+in vec2 offset; // Per instance
 
-uniform vec2 offset;
 uniform vec2 scale;
 
 out vec2 fragUv;
