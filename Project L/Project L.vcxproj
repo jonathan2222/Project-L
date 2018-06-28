@@ -132,6 +132,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="GLAbstractions\IndexBuffer.cpp" />
+    <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="GLAbstractions\Texture.cpp" />
     <ClCompile Include="GLAbstractions\UniformBuffer.cpp" />
     <ClCompile Include="GLAbstractions\VertexArray.cpp" />
     <ClCompile Include="GLAbstractions\VertexBuffer.cpp" />
@@ -153,6 +155,8 @@
   <ItemGroup>
     <ClInclude Include="GameConfig.h" />
     <ClInclude Include="GLAbstractions\IndexBuffer.h" />
+    <ClInclude Include="ResourceManager.h" />
+    <ClInclude Include="GLAbstractions\Texture.h" />
     <ClInclude Include="GLAbstractions\UniformBuffer.h" />
     <ClInclude Include="GLAbstractions\VertexArray.h" />
     <ClInclude Include="GLAbstractions\VertexBuffer.h" />

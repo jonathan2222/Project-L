@@ -11,34 +11,45 @@
 #include "Rendering\Renderer.h"
 #include "Rendering\Model.h"
 
+#include "Utils\Error.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "ResourceManager.h"
+#include "GLAbstractions\Texture.h"
+
 // ---------------------------------------- MAIN ----------------------------------------
 
 int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-	Display display("Project T", 600, 600);
+	Error::init();
+	ResourceManager::initResources("DefaultImage.png");
+
+	Display display("Project L", 600, 600);
 
 	Model m;
 
 	struct Vertex
 	{
 		Vec2 pos;
-		Vec3 color;
+		Vec2 uv;
 	};
 	Vertex data[4] = {
-		{ Vec2(-1.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0f) },
-		{ Vec2(1.0f, 1.0f), Vec3(0.0f, 1.0f, 0.0f) },
-		{ Vec2(1.0f, -1.0f), Vec3(0.0f, 0.0f, 1.0f) },
-		{ Vec2(-1.0f, -1.0f), Vec3(1.0f, 0.0f, 1.0f) }
+		{ Vec2(-1.0f, 1.0f), Vec2(0.0f, 1.0f) },
+		{ Vec2(1.0f, 1.0f), Vec2(1.0f, 1.0f) },
+		{ Vec2(1.0f, -1.0f), Vec2(1.0f, 0.0f) },
+		{ Vec2(-1.0f, -1.0f), Vec2(0.0f, 0.0f) }
 	};
 	VertexBuffer vb(data, sizeof(Vertex) * 4);
 	VertexBufferLayout layout;
 	layout.push<float>(2); // Pos
-	layout.push<float>(3); // Color
+	layout.push<float>(2); // Uvs
 	m.va.addBuffer(vb, layout);
 	unsigned int indices[] = { 0, 2, 1, 0, 3, 2 };
 	m.ib.make(indices, 6);
+
+	Texture texture(ResourceManager::getDefaultImage());
 
 	Renderer renderer;
 
@@ -63,6 +74,7 @@ int main()
 		shader->setUniform2f("scale", 0.5f, 0.5f);
 		shader->setUniform2f("offset", 0.0f, 0.0f);
 		shader->setUniform3f("tint", 1.0f, 1.0f, 1.0f);
+		shader->setTexture2D("myTexture", 0, texture.getID()); // TODO: Fix this!!!
 		renderer.draw(m.va, m.ib);
 
 		display.setTitleSufix(" dt: " + std::to_string(dt) + ", FPS: " + std::to_string(fps));
@@ -78,6 +90,8 @@ int main()
 		dt = dtTimer.getTime();
 		display.getWindowPtr()->display();
 	}
+
+	ResourceManager::freeResources();
 
 	return 0;
 }

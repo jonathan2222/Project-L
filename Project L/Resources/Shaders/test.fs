@@ -1,10 +1,14 @@
 #version 330
 
-in vec3 fragColor;
+in vec2 fragUv;
 
 out vec4 finalColor;
 
+uniform sampler2D myTexture;
+uniform vec3 tint;
+
 void main()
 {
-	finalColor = vec4(min(fragColor, vec3(1.0, 1.0, 1.0)), 1.0);
+	vec4 texColor = texture(myTexture, fragUv);
+	finalColor = vec4(tint*texColor.rgb, 1.0);
 }
