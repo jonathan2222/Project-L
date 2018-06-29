@@ -55,6 +55,21 @@ public:
 		this->stride += count * VertexBufferElement::getSizeOfType(GL_UNSIGNED_BYTE);
 	}
 
+	void pushMat3()
+	{
+		push<float>(3);
+		push<float>(3);
+		push<float>(3);
+	}
+
+	void pushMat4()
+	{
+		push<float>(4);
+		push<float>(4);
+		push<float>(4);
+		push<float>(4);
+	}
+
 	inline const std::vector<VertexBufferElement>& getElements() const { return this->elements; }
 	inline unsigned int getStride() const { return this->stride; }
 

@@ -2,6 +2,7 @@
 
 #include "..\Maths\Vectors\Vec2.h"
 #include "GL\glew.h"
+#include "../Graphics/Sprite.h"
 
 Renderer::Renderer()
 {
@@ -33,6 +34,15 @@ void Renderer::drawInstanced(const VertexArray & va, const IndexBuffer & ib, GLs
 	va.bind();
 	ib.bind();
 	glDrawElementsInstanced(GL_TRIANGLES, ib.getCount(), GL_UNSIGNED_INT, 0, instanceCount);
+}
+
+void Renderer::drawSprite(const Sprite & sprite, Shader& shader) const
+{
+	shader.bind();
+	shader.setUniformMatrix3fv("matrix", 1, false, &(sprite.getMatrix()[0][0]));
+	shader.setUniform3fv("tint", 1, &sprite.getTint()[0]);
+	shader.setTexture2D("tex", 0, sprite.getTexture()->getID());
+	draw(sprite.getModel()->va, sprite.getModel()->ib);
 }
 
 Shader * Renderer::getDefaultShader() const

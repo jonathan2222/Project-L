@@ -5,6 +5,7 @@
 #include "..\GLAbstractions\IndexBuffer.h"
 #include "..\Shaders\Shader.h"
 
+class Sprite;
 class Renderer
 {
 public:
@@ -12,8 +13,11 @@ public:
 	~Renderer();
 
 	void bindShader(const Shader* shader = nullptr) const;
+
 	void draw(const VertexArray& va, const IndexBuffer& ib) const;
 	void drawInstanced(const VertexArray& va, const IndexBuffer& ib, GLsizei instanceCount) const;
+
+	void drawSprite(const Sprite& sprite, Shader& shader) const;
 
 	Shader* getDefaultShader() const;
 

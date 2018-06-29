@@ -1,0 +1,9 @@
+#ifndef TERRAIN_CONFIG_H
+#define TERRAIN_CONFIG_H
+
+#define NUM_CHUNKS_HORIZONTAL 3
+#define NUM_CHUNKS_VERTICAL 3
+#define CHUNK_SIZE 4
+#define TILE_SIZE 0.25f
+
+#endif

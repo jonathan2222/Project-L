@@ -19,14 +19,13 @@ void VertexArray::addBuffer(const VertexBuffer & vertexBuffer, const VertexBuffe
 	for (unsigned int i = 0; i < elements.size(); i++)
 	{
 		const auto& element = elements[i];
-		this->nextLocation += i;
 		glEnableVertexAttribArray((int)this->nextLocation);
-		glVertexAttribPointer((int)this->nextLocation, element.count, element.type, element.normalized, layout.getStride(), (const char*)offset);
+		glVertexAttribPointer((int)this->nextLocation, element.count, element.type, element.normalized, layout.getStride(), (const void*)offset);
 		offset += element.count*VertexBufferElement::getSizeOfType(element.type);
 		if (instanced)
 			glVertexAttribDivisor(this->nextLocation, 1);
+		this->nextLocation++;
 	}
-	this->nextLocation++;
 }
 
 void VertexArray::bind() const

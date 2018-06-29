@@ -131,7 +131,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Terrain\Terrain.cpp" />
     <ClCompile Include="GLAbstractions\IndexBuffer.cpp" />
+    <ClCompile Include="Graphics\Sprite.cpp" />
+    <ClCompile Include="Rendering\ModelManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="GLAbstractions\Texture.cpp" />
     <ClCompile Include="GLAbstractions\UniformBuffer.cpp" />
@@ -154,7 +157,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameConfig.h" />
+    <ClInclude Include="Game\Player\Camera.h" />
+    <ClInclude Include="Game\Terrain\Chunk.h" />
+    <ClInclude Include="Game\Terrain\Terrain.h" />
+    <ClInclude Include="Game\Terrain\Tile.h" />
+    <ClInclude Include="Game\Terrain\TileConfig.h" />
     <ClInclude Include="GLAbstractions\IndexBuffer.h" />
+    <ClInclude Include="Graphics\Sprite.h" />
+    <ClInclude Include="Rendering\ModelManager.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="GLAbstractions\Texture.h" />
     <ClInclude Include="GLAbstractions\UniformBuffer.h" />
@@ -174,13 +184,22 @@
     <ClInclude Include="Maths\Vectors\Vec4.h" />
     <ClInclude Include="Rendering\Model.h" />
     <ClInclude Include="Rendering\Renderer.h" />
+    <ClInclude Include="Image.h" />
+    <ClInclude Include="Game\Terrain\TerrainConfig.h" />
     <ClInclude Include="Shaders\Shader.h" />
     <ClInclude Include="Shaders\ShaderConfig.h" />
     <ClInclude Include="Utils\BitManipulation.h" />
     <ClInclude Include="Utils\Error.h" />
+    <ClInclude Include="Utils\ModelCreator.h" />
     <ClInclude Include="Utils\STB\stb_image.h" />
     <ClInclude Include="Utils\Timer.h" />
     <ClInclude Include="Utils\Utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Shaders\Terrain\terrain.fs" />
+    <None Include="Resources\Shaders\Terrain\terrain.vs" />
+    <None Include="Resources\Shaders\Terrain\terrainInstanced.fs" />
+    <None Include="Resources\Shaders\Terrain\terrainInstanced.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

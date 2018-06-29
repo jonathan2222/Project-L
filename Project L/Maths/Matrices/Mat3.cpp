@@ -5,9 +5,9 @@
 
 Mat3::Mat3()
 {
-	this->col[0].x = 0.0f;	this->col[1].x = 0.0f;	this->col[2].x = 0.0f;
-	this->col[0].y = 0.0f;	this->col[1].y = 0.0f;	this->col[2].y = 0.0f;
-	this->col[0].z = 0.0f;	this->col[1].z = 0.0f;	this->col[2].z = 0.0f;
+	this->col[0].x = 1.0f;	this->col[1].x = 0.0f;	this->col[2].x = 0.0f;
+	this->col[0].y = 0.0f;	this->col[1].y = 1.0f;	this->col[2].y = 0.0f;
+	this->col[0].z = 0.0f;	this->col[1].z = 0.0f;	this->col[2].z = 1.0f;
 }
 
 Mat3::Mat3(float value)

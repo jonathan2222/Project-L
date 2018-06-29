@@ -6,54 +6,46 @@
 
 #include "Utils\STB\stb_image.h"
 #include "Utils\Error.h"
+#include "GLAbstractions\Texture.h"
 
 #include "GameConfig.h"
 
 class ResourceManager
 {
 public:
-	struct Image
-	{
-		int width, height;
-		unsigned char* data;
-	};
-public:
 	static void initResources(const std::string& pathToDefaultImage)
 	{
-		defaultImage = loadImage(std::string(PATH_TO_RESOURCES) + pathToDefaultImage);
-		if (defaultImage == nullptr)
+		Image* img = loadImage(pathToDefaultImage);
+		if (img == nullptr)
 		{
-			Error::printWarning("ResourceManager::initResources()", "Default image could not be loaded! Path: '" + std::string(PATH_TO_RESOURCES) + pathToDefaultImage + "'");
+			Error::printWarning("ResourceManager::initResources()", "Default image could not be loaded! Path: '" + pathToDefaultImage + "'");
 			return;
 		}
+		defaultTexture = createTexture(img);
 	}
 
 	static void freeResources()
 	{
-		for (std::unordered_map<std::string, ResourceManager::Image*>::iterator it = images.begin(); it != images.end(); ++it)
-		{
-			stbi_image_free(it->second->data);
+		for (std::unordered_map<std::string, Texture*>::iterator it = textures.begin(); it != textures.end(); ++it)
 			delete it->second;
-		}
-		images.clear();
-		stbi_image_free(defaultImage->data);
-		delete defaultImage;
+		textures.clear();
+		delete defaultTexture;
 	}
 
 	/*
-	Add an image to the resource manager's storage.
+	Add a texture to the resource manager's storage.
 	Arguments:
 		name: A name given to this resrouce.
 		path: A path with resource name eg. ./foo/bar.png
 
 	Return nullptr if no image was found and if no default image was found.
 	*/
-	static const Image* addImage(const std::string& name, const std::string& path)
+	static Texture* addTexture(const std::string& name, const std::string& path)
 	{
-		std::unordered_map<std::string, ResourceManager::Image*>::iterator it = images.find(name);
-		if (it != images.end()) // Already added.
+		std::unordered_map<std::string, Texture*>::iterator it = textures.find(name);
+		if (it != textures.end()) // Already added.
 		{
-			Error::printWarning("ResourceManager::addImage()", "Image already loaded! Name: '" + name + "'");
+			Error::printWarning("ResourceManager::addTexture()", "Texture already loaded! Name: '" + name + "'");
 			return nullptr;
 		}
 
@@ -61,42 +53,70 @@ public:
 		if (img == nullptr)
 			return nullptr;
 
-		images[name] = img;
-		return img;
+		Texture* texture = createTexture(img);
+		textures[name] = texture;
+		return texture;
 	}
 
 	/*
-	Get an Image which holds the width and height and the pixel data.
-	Return nullptr if no image was found and if no default image was found.
+	Remove a texture from the storage.
+	Returns ture if removed else false. 
 	*/
-	static const Image* getImage(const std::string& name)
+	static bool removeTexture(const std::string& name)
 	{
-		std::unordered_map<std::string, ResourceManager::Image*>::iterator it = images.find(name);
-		if (it != images.end()) // Found image
+		std::unordered_map<std::string, Texture*>::iterator it = textures.find(name);
+		if (it != textures.end())
+		{
+			delete it->second;
+			textures.erase(name);
+			return true;
+		}
+		return false; // Texture was not found.
+	}
+
+	/*
+	Get a texture which holds the width and height and the pixel data.
+	Return nullptr if no texture was found and if no default texture was found.
+	*/
+	static Texture* getTexture(const std::string& name)
+	{
+		std::unordered_map<std::string, Texture*>::iterator it = textures.find(name);
+		if (it != textures.end()) // Found texture
 			return it->second;
 
-		if (defaultImage == nullptr) // No default image.
+		if (defaultTexture == nullptr) // No default texture.
 			return nullptr;
 
-		return defaultImage;
+		return defaultTexture;
 	}
 
 	/*
-	Return nullptr if no default image was found.
+	Return nullptr if no default texture was found.
 	*/
-	static const Image* getDefaultImage()
+	static const Texture* getDefaultTexture()
 	{
-		if (defaultImage == nullptr)
+		if (defaultTexture == nullptr)
 			return nullptr;
-		return defaultImage;
+		return defaultTexture;
 	}
 
 private:
+	/*
+	Will create a texture from image and delete the image.
+	*/
+	static Texture* createTexture(Image* img)
+	{
+		Texture* texture = new Texture(img);
+		stbi_image_free(img->data);
+		delete img;
+		return texture;
+	}
+
 	static Image* loadImage(const std::string& path)
 	{
 		Image* img = new Image();
 		int channelsInternal;
-		img->data = stbi_load(path.c_str(), &img->width, &img->height, &channelsInternal, STBI_rgb_alpha);
+		img->data = stbi_load((std::string(PATH_TO_RESOURCES) + path).c_str(), &img->width, &img->height, &channelsInternal, STBI_rgb_alpha);
 
 		if (img->data == nullptr) // Could not load image.
 		{
@@ -108,8 +128,8 @@ private:
 		return img;
 	}
 
-	static std::unordered_map<std::string, Image*> images;
-	static Image* defaultImage;
+	static std::unordered_map<std::string, Texture*> textures;
+	static Texture* defaultTexture;
 };
 
 #endif

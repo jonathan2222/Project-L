@@ -9,12 +9,14 @@
 
 Shader::Shader(const std::string & pathName)
 {
-	init(pathName, VERTEX_SHADER | FRAGMENT_SHADER);
+	std::string pathToReasources(PATH_TO_RESOURCES);
+	init(pathToReasources+pathName, VERTEX_SHADER | FRAGMENT_SHADER);
 }
 
 Shader::Shader(const std::string & pathName, unsigned int flags)
 {
-	init(pathName, flags);
+	std::string pathToReasources(PATH_TO_RESOURCES);
+	init(pathToReasources+pathName, flags);
 }
 
 Shader::Shader(const std::string & fragmentPath, const std::string & vertexPath)

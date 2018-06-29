@@ -1,10 +1,10 @@
 #include "Texture.h"
 
-Texture::Texture() : hasImage(false)
+Texture::Texture() : hasImage(false), width(0), height(0)
 {
 }
 
-Texture::Texture(const ResourceManager::Image* image) : hasImage(false)
+Texture::Texture(const Image* image) : hasImage(false)
 {
 	loadImage(image);
 }
@@ -31,12 +31,14 @@ void Texture::unbind() const
 		glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void Texture::loadImage(const ResourceManager::Image * image)
+void Texture::loadImage(const Image * image)
 {
 	if (!this->hasImage)
 	{
 		glGenTextures(1, &this->id);
 		this->hasImage = true;
+		this->width = image->width;
+		this->height = image->height;
 		bind();
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -53,5 +55,7 @@ void Texture::releaseImage()
 	{
 		glDeleteTextures(1, &this->id);
 		this->hasImage = false;
+		this->width = 0;
+		this->height = 0;
 	}
 }
