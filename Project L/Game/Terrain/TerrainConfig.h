@@ -4,6 +4,6 @@
 #define NUM_CHUNKS_HORIZONTAL 3
 #define NUM_CHUNKS_VERTICAL 3
 #define CHUNK_SIZE 4
-#define TILE_SIZE 0.25f
+#define TILE_SIZE 1.0f/4.0f
 
 #endif

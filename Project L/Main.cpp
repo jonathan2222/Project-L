@@ -42,8 +42,6 @@ int main()
 	ResourceManager::initResources("DefaultImage.png");
 	ResourceManager::addTexture("GrassTexture", "Textures/Terrain/Grass.png");
 	ResourceManager::addTexture("DirtTexture", "Textures/Terrain/Dirt.png");
-
-	ModelCreator creator;
 	
 	ModelManager::add("RectangleModel", ModelCreator::createRectangleModel(1.0f, 1.0f));
 	
@@ -91,9 +89,9 @@ int main()
 			renderer.draw(mc->va, mc->ib);
 		*/
 
-		renderer.drawSprite(sprite, terrainShader);
-		renderer.drawSprite(spriteDirt, terrainShader);
-		renderer.drawSprite(spriteDirt2, terrainShader);
+		//renderer.drawSprite(sprite, terrainShader);
+		//renderer.drawSprite(spriteDirt, terrainShader);
+		//renderer.drawSprite(spriteDirt2, terrainShader);
 
 		terrain.draw(renderer);
 

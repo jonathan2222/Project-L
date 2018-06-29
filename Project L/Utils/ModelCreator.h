@@ -37,20 +37,6 @@ public:
 		model->isInstanced = false;
 		return model;
 	}
-
-	static Model* createRectangleInstancedModel(unsigned int count, const void* translations, GLenum usage, float width, float height, const Vec2& origin = Vec2(0.0f, 0.0f))
-	{
-		Model* model = createRectangleModel(width, height, origin);
-		model->isInstanced = true;
-		model->count = count;
-
-		model->vbInstanced.make(translations, sizeof(Vec2)*count, usage);
-		VertexBufferLayout instancedLayout;
-		instancedLayout.push<float>(2); // Translation
-		model->va.addBuffer(model->vbInstanced, instancedLayout, true);
-		
-		return model;
-	}
 };
 
 #endif

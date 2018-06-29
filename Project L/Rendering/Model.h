@@ -17,6 +17,7 @@ struct Model
 	VertexArray va;
 	VertexBuffer vb;
 	VertexBuffer vbInstanced;
+	VertexBuffer vbInstanced2;
 	IndexBuffer ib;
 
 	bool isInstanced = false;

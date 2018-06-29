@@ -18,13 +18,15 @@ public:
 	void draw(const Renderer& renderere);
 
 private:
+	void getTilesToDraw();
+
 	Shader * terrainShader;
 	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
 
 	Mat3 transform;
-
-	std::vector<Texture*> texturesToDraw;
-	std::vector<std::vector<Vec2>> tilesToDraw; // Each batch has its corresponding texture from the textureToDraw vector.
+	unsigned int maxTilesDrawn;
+	std::vector<Vec2> translations;
+	std::vector<Vec2> minUvs;
 };
 
 #endif

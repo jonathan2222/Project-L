@@ -7,7 +7,7 @@
 struct Tile
 {
 	Vec2 pos;
-	TILE_TYPE type;
+	TileConfig::TILE_TYPE type;
 };
 
 #endif
