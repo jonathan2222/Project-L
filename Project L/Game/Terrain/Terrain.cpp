@@ -8,7 +8,6 @@
 #include "../../Maths/Maths.h"
 #include "../../Maths/MathsTransform.h"
 
-#include "SFML\Graphics.hpp"
 #include "../../GUI/Display.h"
 
 Terrain::Terrain()

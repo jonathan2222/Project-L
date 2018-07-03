@@ -33,7 +33,7 @@ int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-	std::srand(std::time(nullptr));
+	std::srand((unsigned int)time(nullptr));
 
 	Error::init();
 	Display display("Project L", 600, 600);
@@ -61,7 +61,12 @@ int main()
 	{
 		display.processEvents();
 
-		display.getWindowPtr()->setActive();
+		if (display.sizeUpdated)
+		{
+			std::cout << "Resized!" << std::endl;
+			display.sizeUpdated = false;
+		}
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		dtTimer.restart();
 
@@ -82,7 +87,7 @@ int main()
 
 		dtTimer.stop();
 		dt = dtTimer.getTime();
-		display.getWindowPtr()->display();
+		display.endFrame();
 	}
 
 	ModelManager::removeAll();
