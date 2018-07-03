@@ -11,6 +11,9 @@
 
 #include "../Player/Camera.h"
 
+// TODO: remove from this class
+#include "../../Input/Input.h"
+
 class Display;
 class Terrain
 {

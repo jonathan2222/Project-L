@@ -2,6 +2,8 @@
 
 #include "GUI\Display.h"
 
+#include "Input\Input.h"
+
 #include "Maths\Vectors\Vec2.h"
 #include "Maths\Vectors\Vec3.h"
 #include "Maths\Matrices\Mat3.h"
@@ -37,6 +39,8 @@ int main()
 
 	Error::init();
 	Display display("Project L", 600, 600);
+
+	Input::init(display.getWindowPtr());
 
 	glEnable(GL_TEXTURE_2D);
 	ResourceManager::initResources("DefaultImage.png");

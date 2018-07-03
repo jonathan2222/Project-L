@@ -117,17 +117,15 @@ void Terrain::getTilesToDraw()
 // Temporary, should be in a separate class or in another class.
 void Terrain::processInput(Display* display)
 {
-	/*const float ZOOM_PER_SCROLL_TICK = TILE_SIZE;
-	Display::MouseInput mouseInput = display->getMouseInput();
-	if (mouseInput.scrolls)
+	if (Input::isScrolling())
 	{
-		camera.setZoom(camera.getZoom() + ZOOM_PER_SCROLL_TICK * -mouseInput.wheelDelta);
+		camera.setZoom(camera.getZoom() + /*ZOOM_PER_SCROLL_TICK*/TILE_SIZE * -Input::getScrollYOffest());
 	}
 
-	static sf::Vector2i prePos = sf::Vector2i(-1, -1);
-	sf::Vector2i dist(0.0, 0.0);
-	sf::Vector2i mPos = sf::Mouse::getPosition(*display->getWindowPtr());
-	if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
+	static Vec2 prePos(-1, -1);
+	Vec2 dist(0.0, 0.0);
+	Vec2 mPos = Input::getMousePosition();
+	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
 	{
 		if (prePos.x == -1 && prePos.y == -1)
 			prePos = mPos;
@@ -144,5 +142,8 @@ void Terrain::processInput(Display* display)
 	{
 		prePos.x = -1;
 		prePos.y = -1;
-	}*/
+	}
+
+	if (Input::isKeyClicked(GLFW_KEY_A))
+		std::cout << "A is clicked" << std::endl;
 }
