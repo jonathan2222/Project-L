@@ -9,16 +9,21 @@
 
 #include "Chunk.h"
 
+#include "../Player/Camera.h"
+
+class Display;
 class Terrain
 {
 public:
 	Terrain();
 	~Terrain();
 
-	void draw(const Renderer& renderere);
+	void draw(const Renderer& renderere, Display* display);
 
 private:
+	void createTileVAO();
 	void getTilesToDraw();
+	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
 
 	Shader * terrainShader;
 	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
@@ -27,6 +32,7 @@ private:
 	unsigned int maxTilesDrawn;
 	std::vector<Vec2> translations;
 	std::vector<Vec2> minUvs;
+	Camera camera;
 };
 
 #endif

@@ -9,6 +9,14 @@
 class Display
 {
 public:
+	struct MouseInput
+	{
+		float wheelDelta;
+		float wheelX;
+		float wheelY;
+		bool scrolls;
+	};
+public:
 	Display();
 	Display(const std::string& title, unsigned int width, unsigned int height);
 	virtual ~Display();
@@ -19,8 +27,12 @@ public:
 	void setTitleSufix(const std::string& sufix);
 
 	sf::Window* getWindowPtr();
+	float getWidth() const;
+	float getHeight() const;
 
-	bool isOpen();
+	MouseInput getMouseInput() const;
+
+	bool isOpen() const;
 
 private:
 	void init();
@@ -29,6 +41,8 @@ private:
 	unsigned int width;
 	unsigned int height;
 	std::string title;
+
+	MouseInput mouseInput;
 };
 
 #endif

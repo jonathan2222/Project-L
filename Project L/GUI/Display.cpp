@@ -23,17 +23,26 @@ Display::~Display()
 void Display::processEvents()
 {
 	sf::Event evnt;
+	this->mouseInput.scrolls = false;
 	while (this->window->pollEvent(evnt))
 	{
 		switch (evnt.type)
 		{
 		case sf::Event::Closed:
-			this->window->close();
+				this->window->close();
 			break;
 		case sf::Event::KeyPressed:
 			{
-			if (evnt.key.code == sf::Keyboard::Escape)
-				this->window->close();
+				if (evnt.key.code == sf::Keyboard::Escape)
+					this->window->close();
+			}
+			break;
+		case sf::Event::MouseWheelScrolled:
+			{
+				this->mouseInput.wheelDelta = evnt.mouseWheelScroll.delta;
+				this->mouseInput.wheelX = evnt.mouseWheelScroll.x;
+				this->mouseInput.wheelY = evnt.mouseWheelScroll.y;
+				this->mouseInput.scrolls = true;
 			}
 			break;
 		default:
@@ -57,7 +66,22 @@ sf::Window * Display::getWindowPtr()
 	return this->window;
 }
 
-bool Display::isOpen()
+float Display::getWidth() const
+{
+	return (float)this->width;
+}
+
+float Display::getHeight() const
+{
+	return (float)this->height;
+}
+
+Display::MouseInput Display::getMouseInput() const
+{
+	return this->mouseInput;
+}
+
+bool Display::isOpen() const
 {
 	return this->window->isOpen();
 }
@@ -78,5 +102,8 @@ void Display::init()
 		Error::printError("DISPLAY::init()", "Failed to initialize GLEW!");
 		exit(EXIT_FAILURE);
 	}
+
+	
+	this->mouseInput = {}; // Zero memory.
 }
 

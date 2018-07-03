@@ -40,20 +40,8 @@ int main()
 
 	glEnable(GL_TEXTURE_2D);
 	ResourceManager::initResources("DefaultImage.png");
-	ResourceManager::addTexture("GrassTexture", "Textures/Terrain/Grass.png");
-	ResourceManager::addTexture("DirtTexture", "Textures/Terrain/Dirt.png");
 	
 	ModelManager::add("RectangleModel", ModelCreator::createRectangleModel(1.0f, 1.0f));
-	
-	Shader terrainShader("Shaders/Terrain/terrain.fs", "Shaders/Terrain/terrain.vs");
-	Sprite sprite(ResourceManager::getTexture("GrassTexture"), Vec2(0.0f, 0.0f));
-	sprite.setScale({0.25f, 0.25f});
-
-	Sprite spriteDirt(ResourceManager::getTexture("DirtTexture"), Vec2(0.0f, -0.24f));
-	spriteDirt.setScale({ 0.25f, 0.25f });
-
-	Sprite spriteDirt2(ResourceManager::getTexture("DirtTexture"), Vec2(0.0f, -0.49f));
-	spriteDirt2.setScale({ 0.25f, 0.25f });
 
 	Terrain terrain;
 	
@@ -80,20 +68,8 @@ int main()
 		Shader* shader = renderer.getDefaultShader();
 
 		renderer.bindShader();
-		/*shader->setUniform3f("tint", 1.0f, 1.0f, 1.0f);
-		shader->setTexture2D("myTexture", 0, ResourceManager::getDefaultTexture()->getID());
-		Model* mc = ModelManager::get("RectangleModelInstanced");
-		if(mc->isInstanced)
-			renderer.drawInstanced(mc->va, mc->ib, mc->count);
-		else
-			renderer.draw(mc->va, mc->ib);
-		*/
 
-		//renderer.drawSprite(sprite, terrainShader);
-		//renderer.drawSprite(spriteDirt, terrainShader);
-		//renderer.drawSprite(spriteDirt2, terrainShader);
-
-		terrain.draw(renderer);
+		terrain.draw(renderer, &display);
 
 		display.setTitleSufix(" dt: " + std::to_string(dt) + ", FPS: " + std::to_string(fps));
 

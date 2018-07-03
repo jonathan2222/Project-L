@@ -131,6 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Player\Camera.cpp" />
     <ClCompile Include="Game\Terrain\Terrain.cpp" />
     <ClCompile Include="GLAbstractions\IndexBuffer.cpp" />
     <ClCompile Include="Graphics\Sprite.cpp" />
