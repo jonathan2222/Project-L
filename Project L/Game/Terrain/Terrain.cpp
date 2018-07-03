@@ -34,8 +34,8 @@ Terrain::Terrain()
 				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
 				{
 					Tile& tile = chunk.tiles[yc][xc];
-					int cunkOffsetX = (h - (int)(NUM_CHUNKS_HORIZONTAL / 2)) * CHUNK_SIZE;
-					int cunkOffsetY = (v - (int)(NUM_CHUNKS_VERTICAL / 2)) * CHUNK_SIZE;
+					int cunkOffsetX = (h - (int)(NUM_CHUNKS_HORIZONTAL / 2)) * CHUNK_SIZE - CHUNK_SIZE / 2;
+					int cunkOffsetY = (v - (int)(NUM_CHUNKS_VERTICAL / 2)) * CHUNK_SIZE - CHUNK_SIZE /2;
 					tile.pos = Vec2((float)xc + (float)cunkOffsetX,
 									(float)yc + (float)cunkOffsetY);
 
@@ -76,7 +76,7 @@ void Terrain::createTileVAO()
 	model->count = 0;
 
 	// TODO: SET THE RIGHT MAX COUNT OF INSTANCES TO THE AMOUNT OF TITLE IT TAKES TO FILL THE SCREEN.
-	this->maxTilesDrawn = 1000;
+	this->maxTilesDrawn = 10000;
 
 	// Create buffer for translation
 	model->vbInstanced.make(NULL, sizeof(float) * 4 * this->maxTilesDrawn, GL_STREAM_DRAW);
