@@ -118,7 +118,7 @@ void Terrain::getTilesToDraw()
 // Temporary, should be in a separate class or in another class.
 void Terrain::processInput(Display* display)
 {
-	const float ZOOM_PER_SCROLL_TICK = TILE_SIZE;
+	/*const float ZOOM_PER_SCROLL_TICK = TILE_SIZE;
 	Display::MouseInput mouseInput = display->getMouseInput();
 	if (mouseInput.scrolls)
 	{
@@ -145,5 +145,5 @@ void Terrain::processInput(Display* display)
 	{
 		prePos.x = -1;
 		prePos.y = -1;
-	}
+	}*/
 }

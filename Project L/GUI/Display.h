@@ -3,6 +3,7 @@
 
 #include "GL\glew.h"
 #include "SFML\Window.hpp"
+#include <GLFW/glfw3.h>
 
 #include <string>
 

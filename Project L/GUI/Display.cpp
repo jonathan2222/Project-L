@@ -17,6 +17,7 @@ Display::Display(const std::string & title, unsigned int width, unsigned int hei
 
 Display::~Display()
 {
+	glfwTerminate();
 	delete this->window;
 }
 
@@ -103,6 +104,12 @@ void Display::init()
 		exit(EXIT_FAILURE);
 	}
 
+	// init glfw
+	if (!glfwInit())
+	{
+		Error::printError("DISPLAY::init()", "Failed to initialize GLFW!");
+		exit(EXIT_FAILURE);
+	}
 	
 	this->mouseInput = {}; // Zero memory.
 }
