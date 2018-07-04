@@ -6,7 +6,7 @@
 
 struct Chunk
 {
-	Tile tiles[CHUNK_SIZE][CHUNK_SIZE];
+	Tile tiles[CHUNK_SIZE][CHUNK_SIZE][TILE_LAYERS];
 };
 
 #endif

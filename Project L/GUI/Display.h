@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "DisplayConfig.h"
+
 class Display
 {
 public:
@@ -18,7 +20,7 @@ public:
 	};
 public:
 	Display();
-	Display(const std::string& title, unsigned int width, unsigned int height);
+	Display(const std::string& title, unsigned int width = DEFAULT_DISPLAY_WIDTH, unsigned int height = DEFAULT_DISPLAY_HEIGHT);
 	virtual ~Display();
 
 	void updateView(unsigned int width, unsigned int height);

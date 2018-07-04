@@ -15,9 +15,9 @@ Terrain::Terrain()
 {
 	this->terrainShader = new Shader("Shaders/Terrain/terrainInstanced.fs", "Shaders/Terrain/terrainInstanced.vs");
 
-	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map2.png"); // Map can hold 1024 different 32x32 tiles.
+	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map.png"); // Map can hold 1024 different 32x32 tiles or 4096 16x16 tiles.
 
-	camera.setZoom(1.0f);
+	camera.setZoom(18.0f);
 
 	// Set the tile size.
 	this->transform[0][0] = TILE_SIZE;
@@ -33,7 +33,7 @@ Terrain::Terrain()
 			for(unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
 				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
 				{
-					Tile& tile = chunk.tiles[yc][xc];
+					Tile& tile = chunk.tiles[yc][xc][MIDDLE_TILE]; // Set the middle tile.
 					int cunkOffsetX = (h - (int)(NUM_CHUNKS_HORIZONTAL / 2)) * CHUNK_SIZE - CHUNK_SIZE / 2;
 					int cunkOffsetY = (v - (int)(NUM_CHUNKS_VERTICAL / 2)) * CHUNK_SIZE - CHUNK_SIZE /2;
 					tile.pos = Vec2((float)xc + (float)cunkOffsetX,
@@ -48,6 +48,15 @@ Terrain::Terrain()
 					if (noise- padding == tile.pos.y) tile.type = TileConfig::STONE_DIRT;
 					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
 					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%6);
+
+					Tile& background = chunk.tiles[yc][xc][BACK_TILE];
+					background.pos = tile.pos;
+					background.type = TileConfig::SKY;
+
+					Tile& foreground = chunk.tiles[yc][xc][FRONT_TILE];
+					foreground.pos = background.pos;
+					if (noise < foreground.pos.y) foreground.type = TileConfig::EMPTY;
+					else foreground.type = TileConfig::TRANSPARENT_PLATE;
 				}
 		}
 }
@@ -66,22 +75,32 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 	processInput(display);
 	camera.setZoom(camera.getZoom(), display->getRatio()); // Adjust aspect ratio.
 
-	Model* m = ModelManager::get("TileModelInstanced");
-	this->translations.clear();
-	this->minUvs.clear();
 	getTilesToDraw(display, useWireframe);
-	m->count = this->minUvs.size();
+
+	unsigned int i = MIDDLE_TILE;
+	for (unsigned int i = 0; i < TILE_LAYERS; i++)
+	{
+		drawLayer(renderer, i, useWireframe);
+		this->translations[i].clear();
+		this->minUvs[i].clear();
+	}
+}
+
+void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useWireframe)
+{
+	Model* m = ModelManager::get("TileModelInstanced" + std::to_string(layer));
+	m->count = this->minUvs[layer].size();
 	if (m->count > 0)
 	{
-		m->vbInstanced.updateData(&this->translations[0][0], sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(&this->minUvs[0][0], sizeof(Vec2)*m->count);
+		m->vbInstanced.updateData(&this->translations[layer][0][0], sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(&this->minUvs[layer][0][0], sizeof(Vec2)*m->count);
 	}
 	else
 	{
 		m->vbInstanced.updateData(NULL, sizeof(Vec2)*m->count);
 		m->vbInstanced2.updateData(NULL, sizeof(Vec2)*m->count);
 	}
-	
+
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
 	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE) / TILE_MAP_IMG_SIZE); // TODO: Make this work.
@@ -95,24 +114,29 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 
 void Terrain::createTileVAO()
 {
+	// TODO: SET THE RIGHT MAX COUNT OF INSTANCES TO THE AMOUNT OF TILES IT TAKES TO FILL THE SCREEN.
+	this->maxTilesDrawn = 20000;
+	for(unsigned int i = 0; i < TILE_LAYERS; i++)
+		createModel("TileModelInstanced" + std::to_string(i), this->maxTilesDrawn);
+}
+
+void Terrain::createModel(const std::string & name, unsigned int maxSize)
+{
 	Model* model = ModelCreator::createRectangleModel(1.0f, 1.0f);
 	model->isInstanced = true;
 	model->count = 0;
 
-	// TODO: SET THE RIGHT MAX COUNT OF INSTANCES TO THE AMOUNT OF TITLE IT TAKES TO FILL THE SCREEN.
-	this->maxTilesDrawn = 10000;
-
 	// Create buffer for translation
-	model->vbInstanced.make(NULL, sizeof(float) * 4 * this->maxTilesDrawn, GL_STREAM_DRAW);
+	model->vbInstanced.make(NULL, sizeof(float) * 4 * maxSize, GL_STREAM_DRAW);
 	VertexBufferLayout instancedLayout;
 	instancedLayout.push<float>(2); // Translation
 	model->va.addBuffer(model->vbInstanced, instancedLayout, true);
 
 	// Create buffer for min uv, use same instanced layout
-	model->vbInstanced2.make(NULL, sizeof(float) * 4 * this->maxTilesDrawn, GL_STREAM_DRAW);
+	model->vbInstanced2.make(NULL, sizeof(float) * 4 * maxSize, GL_STREAM_DRAW);
 	model->va.addBuffer(model->vbInstanced2, instancedLayout, true);
 
-	ModelManager::add("TileModelInstanced", model);
+	ModelManager::add(name, model);
 }
 
 void Terrain::getTilesToDraw(Display* display, bool useWireframe)
@@ -123,10 +147,13 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 	float numTilesY = camera.getZoom() / TILE_SIZE + 1.0f;
 	if ((int)numTilesX % 2 != 0) numTilesX++;
 	if ((int)numTilesY % 2 != 0) numTilesY++;
-	const float numTiles = numTilesX * numTilesY;
+	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;		// Not used
 	
-	this->translations.reserve(maxTilesDrawn);
-	this->minUvs.reserve(maxTilesDrawn);
+	for (unsigned int i = 0; i < TILE_LAYERS; i++)
+	{
+		this->translations[i].reserve(numTiles);
+		this->minUvs[i].reserve(numTiles);
+	}
 	const int halfTilesToDrawX = floor(numTilesX / 2.0f);
 	const int halfTilesToDrawY = floor(numTilesY / 2.0f);
 	for(int x = -halfTilesToDrawX; x <= halfTilesToDrawX; x++)
@@ -142,14 +169,17 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 			// TODO: REMOVE THIS (Error checking)!! (After adding a player)
 			if ((posX > leftBoundH) && (posX < rightBoundH) && (posY > leftBoundV) && (posY < rightBoundV))
 			{
-				Tile& tile = getTileFromPos(posX, posY);
-				if (tile.type != TileConfig::EMPTY)
+				for (unsigned int i = 0; i < TILE_LAYERS; i++)
 				{
-					if (useWireframe)
-						this->minUvs.push_back(TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME));
-					else
-						this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
-					this->translations.push_back(tile.pos*TILE_SIZE);
+					Tile& tile = getTileFromPos(posX, posY, i);
+					if (tile.type != TileConfig::EMPTY)
+					{
+						if (useWireframe)
+							this->minUvs[i].push_back(TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME));
+						else
+							this->minUvs[i].push_back(TileConfig::getMinUvFromTileType(tile.type));
+						this->translations[i].push_back(tile.pos*TILE_SIZE);
+					}
 				}
 			}
 		}
@@ -204,13 +234,14 @@ void Terrain::processInput(Display* display)
 		float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
 		float numTilesY = camera.getZoom() / TILE_SIZE;
 		
-		Vec2 mouseOffset(floor(mPos.x/ display->getWidth() * camera.getZoom() * display->getRatio()), floor(mPos.y / display->getHeight() * camera.getZoom()));
-		mouseOffset.x -= floor(numTilesX / 2);
-		mouseOffset.y -= floor(numTilesY / 2);
+		Vec2 mouseOffset(mPos.x/ display->getWidth() * camera.getZoom() * display->getRatio(), mPos.y / display->getHeight() * camera.getZoom());
+		mouseOffset.x -= numTilesX / 2.f - TILE_SIZE / 2.0f;
+		mouseOffset.y -= numTilesY / 2.f + TILE_SIZE / 2.0f;
 		mouseOffset.y = -mouseOffset.y;
+		mouseOffset.y = floor(mouseOffset.y);
+		mouseOffset.x = floor(mouseOffset.x);
 
 		Vec2 tilePos = camPos + mouseOffset;
-		std::cout << "Tile pos: " << Utils::toString(tilePos) << std::endl;
 
 		const int rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
 		const int leftBoundH = -rightBoundH;
@@ -220,14 +251,14 @@ void Terrain::processInput(Display* display)
 		if (tilePos.x > leftBoundH && tilePos.x < rightBoundH &&
 			tilePos.y > leftBoundV && tilePos.y < rightBoundV)
 		{
-			Tile& tile = getTileFromPos(tilePos.x, tilePos.y);
-			//std::cout << "Tile pos: " << Utils::toString(tilePos) << ", type: " << tile.type << std::endl;
+			Tile& tile = getTileFromPos(tilePos.x, tilePos.y, MIDDLE_TILE);
+			std::cout << "Tile pos: " << Utils::toString(tilePos) << ", type: " << tile.type << std::endl;
 		}
 
 	}
 }
 
-Tile & Terrain::getTileFromPos(float x, float y)
+Tile & Terrain::getTileFromPos(float x, float y, unsigned int layer)
 {
 	const float posXT = x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
 	const float posYT = y + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
@@ -238,5 +269,5 @@ Tile & Terrain::getTileFromPos(float x, float y)
 	const int xc = (int)posXT % CHUNK_SIZE;
 	const int yc = (int)posYT % CHUNK_SIZE;
 
-	return this->chunks[v][h].tiles[yc][xc];
+	return this->chunks[v][h].tiles[yc][xc][layer];
 }

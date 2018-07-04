@@ -24,18 +24,21 @@ public:
 	void draw(const Renderer& renderere, Display* display);
 
 private:
+	void drawLayer(const Renderer& renderer, unsigned int layer, bool useWireframe);
+
 	void createTileVAO();
+	void createModel(const std::string& name, unsigned int maxSize);
 	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
-	Tile& getTileFromPos(float x, float y);
+	Tile& getTileFromPos(float x, float y, unsigned int layer);
 
 	Shader * terrainShader;
 	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
 
 	Mat3 transform;
 	unsigned int maxTilesDrawn;
-	std::vector<Vec2> translations;
-	std::vector<Vec2> minUvs;
+	std::vector<Vec2> translations[TILE_LAYERS];
+	std::vector<Vec2> minUvs[TILE_LAYERS];
 	Camera camera;
 };
 

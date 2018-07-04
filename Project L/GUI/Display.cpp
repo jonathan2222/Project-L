@@ -1,6 +1,5 @@
 #include "Display.h"
 
-#include "DisplayConfig.h"
 #include "../Utils/Error.h"
 
 Display* Display::displayPtr = nullptr;

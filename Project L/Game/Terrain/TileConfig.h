@@ -2,7 +2,7 @@
 #define TILE_CONFIG_H
 
 #define TILE_IMG_SIZE 16
-#define TILE_MAP_IMG_SIZE 80//1024
+#define TILE_MAP_IMG_SIZE 1024
 #define MIN_UV(indexX, indexY) Vec2(((float)(indexX*TILE_IMG_SIZE))/(float)TILE_MAP_IMG_SIZE, \
 									((float)(indexY*TILE_IMG_SIZE))/(float)TILE_MAP_IMG_SIZE)
 
@@ -15,13 +15,17 @@ struct TileConfig
 		DIRT,
 		STONE_DIRT,
 		STONE,
-		WIRE_FRAME
+		WIRE_FRAME,
+		SKY,
+		TRANSPARENT_PLATE
 	};
 	
 	static Vec2 getMinUvFromTileType(TILE_TYPE type)
 	{
 		switch (type)
 		{
+			case TRANSPARENT_PLATE: return Vec2(MIN_UV(0, 3)); break;
+			case SKY:				return Vec2(MIN_UV(0, 2)); break;
 			case WIRE_FRAME:		return Vec2(MIN_UV(0, 1)); break;
 			case STONE:				return Vec2(MIN_UV(1, 3)); break;
 			case STONE_DIRT:		return Vec2(MIN_UV(1, 2)); break;

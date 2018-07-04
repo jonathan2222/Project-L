@@ -38,7 +38,7 @@ int main()
 	std::srand((unsigned int)time(nullptr));
 
 	Error::init();
-	Display display("Project L", 600, 600);
+	Display display("Project L");
 
 	Input::init(display.getWindowPtr());
 

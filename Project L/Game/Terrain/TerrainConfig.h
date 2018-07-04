@@ -4,6 +4,11 @@
 #define NUM_CHUNKS_HORIZONTAL 10
 #define NUM_CHUNKS_VERTICAL 10
 #define CHUNK_SIZE 16
+#define TILE_LAYERS 3
 #define TILE_SIZE 1.0f//(1.0f/4.0f)
+
+#define BACK_TILE 0
+#define FRONT_TILE (TILE_LAYERS-1)
+#define MIDDLE_TILE (int)(TILE_LAYERS/2.f)
 
 #endif
