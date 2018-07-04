@@ -38,8 +38,8 @@ Terrain::Terrain()
 					int cunkOffsetY = (v - (int)(NUM_CHUNKS_VERTICAL / 2)) * CHUNK_SIZE - CHUNK_SIZE /2;
 					tile.pos = Vec2((float)xc + (float)cunkOffsetX,
 									(float)yc + (float)cunkOffsetY);
-
-					float noise = Utils::perlinNoise(tile.pos.x*0.25f, 0.5f, 2.0f, 1, Utils::COSINE_INTERPOLATION);
+					float posX = tile.pos.x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
+					float noise = Utils::perlinNoise(posX*0.05f, 0.5f, 2.0f, 4, Utils::COSINE_INTERPOLATION);
 					int padding = floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
 					if (noise < tile.pos.y) tile.type = TileConfig::EMPTY;
@@ -47,7 +47,7 @@ Terrain::Terrain()
 					if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
 					if (noise- padding == tile.pos.y) tile.type = TileConfig::STONE_DIRT;
 					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
-					//tile.type = (TileConfig::TILE_TYPE)((h+v)%4);
+					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%6);
 				}
 		}
 }
@@ -72,7 +72,7 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 	
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
-	this->terrainShader->setUniform1f("uvScale", (float)TILE_IMG_SIZE / TILE_MAP_IMG_SIZE);
+	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE-1) / TILE_MAP_IMG_SIZE);
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
 	renderer.drawInstanced(m->va, m->ib, m->count);
@@ -132,8 +132,11 @@ void Terrain::getTilesToDraw(Display* display)
 			if (v >= 0 && v < NUM_CHUNKS_VERTICAL && h >= 0 && h < NUM_CHUNKS_HORIZONTAL)
 			{
 				Tile& tile = this->chunks[v][h].tiles[yc][xc];
-				this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
-				this->translations.push_back(tile.pos*TILE_SIZE);
+				if (tile.type != TileConfig::EMPTY)
+				{
+					this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
+					this->translations.push_back(tile.pos*TILE_SIZE);
+				}
 			}
 		}
 		
