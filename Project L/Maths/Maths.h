@@ -39,6 +39,31 @@ public:
 
 	static float toRadians(float deg);
 	static float toDegrees(float rad);
+
+	static float fract(float x)
+	{
+		return x - (int)x;
+	}
+
+	// -------------------------- LERP FUNCTIONS --------------------------
+
+	/*
+	Cosine interpolation between the values a and b.
+	@param a
+	@param b
+	@param x a weight value between 0 and 1.
+	@return a if x is 0, b if x is 1 and interpolated value between a and b if x is between 0 and 1.
+	*/
+	template<typename T>
+	static T lerp(const T& a, const T& b, float x);
+	template<typename T>
+	static float cosineLerp(const T& a, const T& b, float x);
+	template<typename T>
+	static float cubicHermiteInterpolation3rdOrder(const T& a, const T& b, float x);
+	template<typename T>
+	static float cubicHermiteInterpolation5thOrder(const T& a, const T& b, float x);
+	template<typename T>
+	static float cubicHermiteInterpolation7thOrder(const T& a, const T& b, float x);
 };
 
 // --------------------- IMPLEMENTATION ---------------------
@@ -84,6 +109,41 @@ T Maths::transpose(const T& m)
 		for (int c = 0; c < side; c++)
 			ret[c][r] = m[r][c];
 	return ret;
+}
+
+template<typename T>
+inline T Maths::lerp(const T & a, const T & b, float x)
+{
+	return a*(1.0f - x) + b*x;
+}
+
+template<typename T>
+inline float Maths::cosineLerp(const T & a, const T & b, float x)
+{
+	float ft = x * MathsConstatns::PI;
+	float f = (1.0f - cos(ft))*.5f;
+	return lerp(a, b, f);
+}
+
+template<typename T>
+inline float Maths::cubicHermiteInterpolation3rdOrder(const T & a, const T & b, float x)
+{
+	float t = x * x*(3 - 2 * x);
+	return lerp(a, b, t);
+}
+
+template<typename T>
+inline float Maths::cubicHermiteInterpolation5thOrder(const T & a, const T & b, float x)
+{
+	float t = x * x*x*(x*(x * 6 - 15) + 10);
+	return lerp(a, b, t);
+}
+
+template<typename T>
+inline float Maths::cubicHermiteInterpolation7thOrder(const T & a, const T & b, float x)
+{
+	float t = x * x*x*x*(x*(x*(70 - 20 * x) - 84) + 35);
+	return lerp(a, b, t);
 }
 
 #endif

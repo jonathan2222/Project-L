@@ -25,7 +25,7 @@ public:
 
 private:
 	void createTileVAO();
-	void getTilesToDraw();
+	void getTilesToDraw(Display* display);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
 
 	Shader * terrainShader;

@@ -5,10 +5,11 @@
 #define Z_NEAR	0.001f
 #define Z_FAR	100.0f
 
-Camera::Camera(const Vec3 & position, float zoom)
+Camera::Camera(const Vec3 & position, float zoom, float ratio)
 {
 	const float halfZoom = zoom / 2.0f;
-	this->proj = MathsTransform::orthographic(-halfZoom, halfZoom, halfZoom, -halfZoom, Z_NEAR, Z_FAR);
+	this->zoom = zoom;
+	this->proj = MathsTransform::orthographic(-halfZoom* ratio, halfZoom*ratio, halfZoom, -halfZoom, Z_NEAR, Z_FAR);
 	this->view = MathsTransform::translate(-position.x, -position.y, -position.z);
 }
 
@@ -19,10 +20,11 @@ void Camera::move(const Vec3 & translation)
 	this->view[3][2] -= translation.z;
 }
 
-void Camera::setZoom(float zoom)
+void Camera::setZoom(float zoom, float ratio)
 {
 	const float halfZoom = zoom / 2.0f;
-	this->proj = MathsTransform::orthographic(this->proj, -halfZoom, halfZoom, halfZoom, -halfZoom, Z_NEAR, Z_FAR);
+	this->zoom = zoom;
+	this->proj = MathsTransform::orthographic(this->proj, -halfZoom* ratio, halfZoom*ratio, halfZoom, -halfZoom, Z_NEAR, Z_FAR);
 }
 
 void Camera::setPosition(const Vec3 & position)
@@ -39,7 +41,7 @@ Vec3 Camera::getPosition() const
 
 float Camera::getZoom() const
 {
-	return 2.0f/this->proj[0][0];
+	return this->zoom;
 }
 
 Mat4 Camera::getMatrix() const

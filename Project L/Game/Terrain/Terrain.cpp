@@ -7,6 +7,7 @@
 #include "TerrainConfig.h"
 #include "../../Maths/Maths.h"
 #include "../../Maths/MathsTransform.h"
+#include "../../Utils/Utils.h"
 
 #include "../../GUI/Display.h"
 
@@ -38,7 +39,15 @@ Terrain::Terrain()
 					tile.pos = Vec2((float)xc + (float)cunkOffsetX,
 									(float)yc + (float)cunkOffsetY);
 
-					tile.type = (TileConfig::TILE_TYPE)((v + h) % 4);
+					float noise = Utils::perlinNoise(tile.pos.x*0.25f, 0.5f, 2.0f, 1, Utils::COSINE_INTERPOLATION);
+					int padding = floor(noise*CHUNK_SIZE*0.7f);
+					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
+					if (noise < tile.pos.y) tile.type = TileConfig::EMPTY;
+					if (noise == tile.pos.y) tile.type = TileConfig::DIRT_GRASS;
+					if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
+					if (noise- padding == tile.pos.y) tile.type = TileConfig::STONE_DIRT;
+					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
+					//tile.type = (TileConfig::TILE_TYPE)((h+v)%4);
 				}
 		}
 }
@@ -50,16 +59,17 @@ Terrain::~Terrain()
 
 void Terrain::draw(const Renderer & renderer, Display* display)
 {
+	processInput(display);
+	camera.setZoom(camera.getZoom(), display->getRatio()); // Adjust aspect ratio.
+
 	Model* m = ModelManager::get("TileModelInstanced");
 	this->translations.clear();
 	this->minUvs.clear();
-	getTilesToDraw();
+	getTilesToDraw(display);
 	m->count = this->minUvs.size();
 	m->vbInstanced.updateData(&this->translations[0][0], sizeof(Vec2)*m->count);
 	m->vbInstanced2.updateData(&this->minUvs[0][0], sizeof(Vec2)*m->count);
-
-	processInput(display);
-
+	
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
 	this->terrainShader->setUniform1f("uvScale", (float)TILE_IMG_SIZE / TILE_MAP_IMG_SIZE);
@@ -90,36 +100,53 @@ void Terrain::createTileVAO()
 	ModelManager::add("TileModelInstanced", model);
 }
 
-void Terrain::getTilesToDraw()
+void Terrain::getTilesToDraw(Display* display)
 {
-	this->translations.reserve(this->maxTilesDrawn);
-	this->minUvs.reserve(this->maxTilesDrawn);
-	const int TILES_TO_SHOW_RAD = 2;
-	for (unsigned int v = 0; v < NUM_CHUNKS_VERTICAL; v++)
-		for (unsigned int h = 0; h < NUM_CHUNKS_HORIZONTAL; h++)
+	
+	Vec3 camPos = camera.getPosition() / TILE_SIZE;
+	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE + 1.0f;
+	float numTilesY = camera.getZoom() / TILE_SIZE + 1.0f;
+	if ((int)numTilesX % 2 != 0) numTilesX++;
+	if ((int)numTilesY % 2 != 0) numTilesY++;
+	const float numTiles = numTilesX * numTilesY;
+	
+	this->translations.reserve(maxTilesDrawn);
+	this->minUvs.reserve(maxTilesDrawn);
+	const int halfTilesToDrawX = floor(numTilesX / 2.0f);
+	const int halfTilesToDrawY = floor(numTilesY / 2.0f);
+	for(int x = -halfTilesToDrawX; x <= halfTilesToDrawX; x++)
+		for (int y = -halfTilesToDrawY; y <= halfTilesToDrawY; y++)
 		{
-			Chunk& chunk = this->chunks[v][h];
-			for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
-				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
-				{
-					Tile& tile = chunk.tiles[yc][xc];
-					//if (tile.pos.x < TILES_TO_SHOW_RAD && tile.pos.x > -TILES_TO_SHOW_RAD &&
-					//	tile.pos.y < TILES_TO_SHOW_RAD && tile.pos.y > -TILES_TO_SHOW_RAD)
-					//{
-						this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
-						this->translations.push_back(tile.pos*TILE_SIZE);
-					//}
+			const float posX = camPos.x + (float)x;
+			const float posY = camPos.y + (float)y;
+			const float posXT = posX + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
+			const float posYT = posY + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
 
-				}
+			const int h = floor(posXT / CHUNK_SIZE);
+			const int v = floor(posYT / CHUNK_SIZE);
+
+			const int xc = (int)posXT % CHUNK_SIZE;
+			const int yc = (int)posYT % CHUNK_SIZE;
+
+			// TODO: REMOVE THIS!!
+			if (v >= 0 && v < NUM_CHUNKS_VERTICAL && h >= 0 && h < NUM_CHUNKS_HORIZONTAL)
+			{
+				Tile& tile = this->chunks[v][h].tiles[yc][xc];
+				this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
+				this->translations.push_back(tile.pos*TILE_SIZE);
+			}
 		}
+		
 }
 
-// Temporary, should be in a separate class or in another class.
+// TODO: MOVE THIS!, Temporary, should be in a separate class or in another class.
 void Terrain::processInput(Display* display)
 {
 	if (Input::isScrolling())
 	{
-		camera.setZoom(camera.getZoom() + /*ZOOM_PER_SCROLL_TICK*/TILE_SIZE * -Input::getScrollYOffest());
+		float newZoom = camera.getZoom() + TILE_SIZE * -Input::getScrollYOffest();
+		if(newZoom > 0)
+			camera.setZoom(newZoom);
 	}
 
 	static Vec2 prePos(-1, -1);
@@ -132,7 +159,7 @@ void Terrain::processInput(Display* display)
 
 		dist = mPos - prePos;
 		Vec3 translation;
-		translation.x = -(float)dist.x / display->getWidth() * camera.getZoom();
+		translation.x = -(float)dist.x / display->getWidth() * camera.getZoom() * display->getRatio();
 		translation.y = (float)dist.y / display->getHeight() * camera.getZoom();
 		camera.move(translation);
 
@@ -145,5 +172,11 @@ void Terrain::processInput(Display* display)
 	}
 
 	if (Input::isKeyClicked(GLFW_KEY_A))
-		std::cout << "A is clicked" << std::endl;
+		camera.move({ -TILE_SIZE, 0.0f, 0.0f });
+	if (Input::isKeyClicked(GLFW_KEY_D))
+		camera.move({ TILE_SIZE, 0.0f, 0.0f });
+	if (Input::isKeyClicked(GLFW_KEY_W))
+		camera.move({ 0.0f, TILE_SIZE, 0.0f });
+	if (Input::isKeyClicked(GLFW_KEY_S))
+		camera.move({ 0.0f, -TILE_SIZE, 0.0f });
 }
