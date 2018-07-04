@@ -19,6 +19,7 @@ public:
 
 	static bool isButtonPressed(int button);
 	static bool isButtonReleased(int button);
+	static bool isButtonClicked(int button);
 
 	// Mouse position
 	static double getMousePosX();
@@ -66,6 +67,7 @@ private:
 	static bool pressedKeys[GLFW_KEY_LAST];
 	static bool pressedPreKeys[GLFW_KEY_LAST];
 	static bool pressedButtons[GLFW_MOUSE_BUTTON_LAST];
+	static bool pressedPreButtons[GLFW_MOUSE_BUTTON_LAST];
 	static int mods;
 	static double posX;
 	static double posY;

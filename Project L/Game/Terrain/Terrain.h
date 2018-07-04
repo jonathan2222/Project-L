@@ -25,8 +25,9 @@ public:
 
 private:
 	void createTileVAO();
-	void getTilesToDraw(Display* display);
+	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
+	Tile& getTileFromPos(float x, float y);
 
 	Shader * terrainShader;
 	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];

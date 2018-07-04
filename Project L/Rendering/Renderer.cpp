@@ -31,9 +31,14 @@ void Renderer::draw(const VertexArray & va, const IndexBuffer & ib) const
 
 void Renderer::drawInstanced(const VertexArray & va, const IndexBuffer & ib, GLsizei instanceCount) const
 {
+	drawInstanced(GL_TRIANGLES, va, ib, instanceCount);
+}
+
+void Renderer::drawInstanced(GLenum mode, const VertexArray & va, const IndexBuffer & ib, GLsizei instanceCount) const
+{
 	va.bind();
 	ib.bind();
-	glDrawElementsInstanced(GL_TRIANGLES, ib.getCount(), GL_UNSIGNED_INT, 0, instanceCount);
+	glDrawElementsInstanced(mode, ib.getCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
 void Renderer::drawSprite(const Sprite & sprite, Shader& shader) const

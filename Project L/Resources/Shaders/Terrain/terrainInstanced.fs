@@ -1,7 +1,7 @@
 #version 330
 
 in vec2 fragUv;
-in vec2 fragMinUv;
+flat in vec2 fragMinUv;
 
 out vec4 finalColor;
 

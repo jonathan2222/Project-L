@@ -5,6 +5,7 @@ GLFWwindow * Input::win = nullptr;
 bool Input::pressedKeys[GLFW_KEY_LAST] = { false };
 bool Input::pressedPreKeys[GLFW_KEY_LAST] = { false };
 bool Input::pressedButtons[GLFW_MOUSE_BUTTON_LAST] = { false };
+bool Input::pressedPreButtons[GLFW_MOUSE_BUTTON_LAST] = { false };
 int Input::mods = 0;
 
 double Input::posX = 0.0;
@@ -50,6 +51,13 @@ bool Input::isButtonPressed(int button)
 bool Input::isButtonReleased(int button)
 {
 	return !pressedButtons[button];
+}
+
+bool Input::isButtonClicked(int button)
+{
+	bool ret = pressedButtons[button] && !pressedPreButtons[button];
+	pressedPreButtons[button] = true;
+	return ret;
 }
 
 double Input::getMousePosX()
@@ -198,6 +206,7 @@ void Input::key_release(int key)
 
 void Input::mouse_pressed(int button)
 {
+	pressedPreButtons[button] = pressedButtons[button];
 	pressedButtons[button] = true;
 }
 

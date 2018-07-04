@@ -15,7 +15,7 @@ Terrain::Terrain()
 {
 	this->terrainShader = new Shader("Shaders/Terrain/terrainInstanced.fs", "Shaders/Terrain/terrainInstanced.vs");
 
-	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map.png"); // Map can hold 1024 different 32x32 tiles.
+	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map2.png"); // Map can hold 1024 different 32x32 tiles.
 
 	camera.setZoom(1.0f);
 
@@ -59,23 +59,38 @@ Terrain::~Terrain()
 
 void Terrain::draw(const Renderer & renderer, Display* display)
 {
+	static bool useWireframe = false;
+	if (Input::isKeyClicked(GLFW_KEY_F))
+		useWireframe ^= 1;
+
 	processInput(display);
 	camera.setZoom(camera.getZoom(), display->getRatio()); // Adjust aspect ratio.
 
 	Model* m = ModelManager::get("TileModelInstanced");
 	this->translations.clear();
 	this->minUvs.clear();
-	getTilesToDraw(display);
+	getTilesToDraw(display, useWireframe);
 	m->count = this->minUvs.size();
-	m->vbInstanced.updateData(&this->translations[0][0], sizeof(Vec2)*m->count);
-	m->vbInstanced2.updateData(&this->minUvs[0][0], sizeof(Vec2)*m->count);
+	if (m->count > 0)
+	{
+		m->vbInstanced.updateData(&this->translations[0][0], sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(&this->minUvs[0][0], sizeof(Vec2)*m->count);
+	}
+	else
+	{
+		m->vbInstanced.updateData(NULL, sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(NULL, sizeof(Vec2)*m->count);
+	}
 	
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
-	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE-1) / TILE_MAP_IMG_SIZE);
+	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE) / TILE_MAP_IMG_SIZE); // TODO: Make this work.
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
-	renderer.drawInstanced(m->va, m->ib, m->count);
+	if (useWireframe)
+		renderer.drawInstanced(GL_LINE_LOOP, m->va, m->ib, m->count);
+	else
+		renderer.drawInstanced(m->va, m->ib, m->count);
 }
 
 void Terrain::createTileVAO()
@@ -100,7 +115,7 @@ void Terrain::createTileVAO()
 	ModelManager::add("TileModelInstanced", model);
 }
 
-void Terrain::getTilesToDraw(Display* display)
+void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 {
 	
 	Vec3 camPos = camera.getPosition() / TILE_SIZE;
@@ -119,22 +134,21 @@ void Terrain::getTilesToDraw(Display* display)
 		{
 			const float posX = camPos.x + (float)x;
 			const float posY = camPos.y + (float)y;
-			const float posXT = posX + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
-			const float posYT = posY + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
+			const float rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+			const float leftBoundH = -rightBoundH;
+			const float rightBoundV = (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+			const float leftBoundV = -rightBoundV;
 
-			const int h = floor(posXT / CHUNK_SIZE);
-			const int v = floor(posYT / CHUNK_SIZE);
-
-			const int xc = (int)posXT % CHUNK_SIZE;
-			const int yc = (int)posYT % CHUNK_SIZE;
-
-			// TODO: REMOVE THIS!!
-			if (v >= 0 && v < NUM_CHUNKS_VERTICAL && h >= 0 && h < NUM_CHUNKS_HORIZONTAL)
+			// TODO: REMOVE THIS (Error checking)!! (After adding a player)
+			if ((posX > leftBoundH) && (posX < rightBoundH) && (posY > leftBoundV) && (posY < rightBoundV))
 			{
-				Tile& tile = this->chunks[v][h].tiles[yc][xc];
+				Tile& tile = getTileFromPos(posX, posY);
 				if (tile.type != TileConfig::EMPTY)
 				{
-					this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
+					if (useWireframe)
+						this->minUvs.push_back(TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME));
+					else
+						this->minUvs.push_back(TileConfig::getMinUvFromTileType(tile.type));
 					this->translations.push_back(tile.pos*TILE_SIZE);
 				}
 			}
@@ -150,6 +164,7 @@ void Terrain::processInput(Display* display)
 		float newZoom = camera.getZoom() + TILE_SIZE * -Input::getScrollYOffest();
 		if(newZoom > 0)
 			camera.setZoom(newZoom);
+		Error::printWarning("Zoom: " + std::to_string(newZoom));
 	}
 
 	static Vec2 prePos(-1, -1);
@@ -182,4 +197,46 @@ void Terrain::processInput(Display* display)
 		camera.move({ 0.0f, TILE_SIZE, 0.0f });
 	if (Input::isKeyClicked(GLFW_KEY_S))
 		camera.move({ 0.0f, -TILE_SIZE, 0.0f });
+
+	if (Input::isButtonClicked(GLFW_MOUSE_BUTTON_RIGHT))
+	{
+		Vec3 camPos = camera.getPosition() / TILE_SIZE;
+		float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
+		float numTilesY = camera.getZoom() / TILE_SIZE;
+		
+		Vec2 mouseOffset(floor(mPos.x/ display->getWidth() * camera.getZoom() * display->getRatio()), floor(mPos.y / display->getHeight() * camera.getZoom()));
+		mouseOffset.x -= floor(numTilesX / 2);
+		mouseOffset.y -= floor(numTilesY / 2);
+		mouseOffset.y = -mouseOffset.y;
+
+		Vec2 tilePos = camPos + mouseOffset;
+		std::cout << "Tile pos: " << Utils::toString(tilePos) << std::endl;
+
+		const int rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+		const int leftBoundH = -rightBoundH;
+		const int rightBoundV = (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+		const int leftBoundV = -rightBoundV;
+
+		if (tilePos.x > leftBoundH && tilePos.x < rightBoundH &&
+			tilePos.y > leftBoundV && tilePos.y < rightBoundV)
+		{
+			Tile& tile = getTileFromPos(tilePos.x, tilePos.y);
+			//std::cout << "Tile pos: " << Utils::toString(tilePos) << ", type: " << tile.type << std::endl;
+		}
+
+	}
+}
+
+Tile & Terrain::getTileFromPos(float x, float y)
+{
+	const float posXT = x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
+	const float posYT = y + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
+
+	const int h = floor(posXT / CHUNK_SIZE);
+	const int v = floor(posYT / CHUNK_SIZE);
+
+	const int xc = (int)posXT % CHUNK_SIZE;
+	const int yc = (int)posYT % CHUNK_SIZE;
+
+	return this->chunks[v][h].tiles[yc][xc];
 }

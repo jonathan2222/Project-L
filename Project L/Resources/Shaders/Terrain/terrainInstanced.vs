@@ -7,7 +7,7 @@ layout(location = 2) in vec2 translation;
 layout(location = 3) in vec2 minUv;
 
 out vec2 fragUv;
-out vec2 fragMinUv;
+flat out vec2 fragMinUv;
 
 uniform mat4 camera;
 uniform mat3 transform;
