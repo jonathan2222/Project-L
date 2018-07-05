@@ -28,6 +28,7 @@ public:
 	Vec4(const Vec4& v);
 	Vec4(const Vec3& v, float w = 0.0f);
 	Vec4(const Vec2& v, float z = 0.0f, float w = 0.0f);
+	Vec4(const Vec2& v, const Vec2& v2);
 
 	float& operator[](size_t i);
 	const float& operator[](size_t i) const;

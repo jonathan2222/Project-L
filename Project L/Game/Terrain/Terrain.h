@@ -37,8 +37,14 @@ private:
 
 	Mat3 transform;
 	unsigned int maxTilesDrawn;
+	struct TileDrawData
+	{
+		Vec2 minUv;
+		Vec2 minUv2;
+		Vec2 minUvMask;
+	};
 	std::vector<Vec2> translations[TILE_LAYERS];
-	std::vector<Vec2> minUvs[TILE_LAYERS];
+	std::vector<TileDrawData> minUvs[TILE_LAYERS];
 	Camera camera;
 };
 

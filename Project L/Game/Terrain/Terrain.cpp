@@ -16,7 +16,7 @@ Terrain::Terrain()
 {
 	this->terrainShader = new Shader("Shaders/Terrain/terrainInstanced.fs", "Shaders/Terrain/terrainInstanced.vs");
 
-	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map.png"); // Map can hold 1024 different 32x32 tiles or 4096 16x16 tiles.
+	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map_8x8.png"); // Map can hold 1024 different 32x32 tiles or 4096 16x16 tiles.
 
 	camera.setZoom(18.0f);
 
@@ -44,11 +44,18 @@ Terrain::Terrain()
 					int padding = floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
 					if (noise < tile.pos.y) tile.type = TileConfig::EMPTY;
-					if (noise == tile.pos.y) tile.type = TileConfig::DIRT_GRASS;
-					if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
-					if (noise- padding == tile.pos.y) tile.type = TileConfig::STONE_DIRT;
+					if (noise == tile.pos.y)
+					{
+						tile.type = TileConfig::GRASS;
+						tile.mask = TileConfig::MASK_PATCH_T;
+					}
+					else if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
+					if (noise - padding == tile.pos.y)
+					{
+						tile.mask = (TileConfig::TILE_TYPE)((h + v + xc + yc) % 18 + 4);
+					}
 					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
-					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%6);
+					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%(TileConfig::MAX_NUM_TYPES));
 
 					Tile& background = chunk.tiles[yc][xc][BACK_TILE];
 					background.pos = tile.pos;
@@ -94,12 +101,12 @@ void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useW
 	if (m->count > 0)
 	{
 		m->vbInstanced.updateData(&this->translations[layer][0][0], sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(&this->minUvs[layer][0][0], sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(&this->minUvs[layer][0].minUv, sizeof(TileDrawData)*m->count);
 	}
 	else
 	{
 		m->vbInstanced.updateData(NULL, sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(NULL, sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(NULL, sizeof(TileDrawData)*m->count);
 	}
 
 	this->terrainShader->bind();
@@ -128,14 +135,18 @@ void Terrain::createModel(const std::string & name, unsigned int maxSize)
 	model->count = 0;
 
 	// Create buffer for translation
-	model->vbInstanced.make(NULL, sizeof(float) * 4 * maxSize, GL_STREAM_DRAW);
+	model->vbInstanced.make(NULL, sizeof(float) * 2 * maxSize, GL_STREAM_DRAW);
 	VertexBufferLayout instancedLayout;
 	instancedLayout.push<float>(2); // Translation
 	model->va.addBuffer(model->vbInstanced, instancedLayout, true);
 
 	// Create buffer for min uv, use same instanced layout
-	model->vbInstanced2.make(NULL, sizeof(float) * 4 * maxSize, GL_STREAM_DRAW);
-	model->va.addBuffer(model->vbInstanced2, instancedLayout, true);
+	model->vbInstanced2.make(NULL, sizeof(float) * 6 * maxSize, GL_STREAM_DRAW);
+	VertexBufferLayout instancedLayoutMinUv;
+	instancedLayoutMinUv.push<float>(2); // Min uv
+	instancedLayoutMinUv.push<float>(2); // Min uv mask
+	instancedLayoutMinUv.push<float>(2); // Min uv 2 (Second type)
+	model->va.addBuffer(model->vbInstanced2, instancedLayoutMinUv, true);
 
 	ModelManager::add(name, model);
 }
@@ -175,10 +186,30 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 					Tile* tile = getTileFromPos(posX, posY, i);
 					if (tile != nullptr && tile->type != TileConfig::EMPTY)
 					{
+						TileDrawData tileData;
 						if (useWireframe)
-							this->minUvs[i].push_back(TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME));
+						{
+							Vec2 wirePos = TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME);
+							tileData.minUv = wirePos;
+							tileData.minUv2 = wirePos;
+							tileData.minUvMask = wirePos;
+						}
 						else
-							this->minUvs[i].push_back(TileConfig::getMinUvFromTileType(tile->type));
+						{
+							tileData.minUv = TileConfig::getMinUvFromTileType(tile->type);
+							Tile* tileDown = getTileFromPos(posX, posY - 1, i);
+							Tile* tileUp = getTileFromPos(posX, posY + 1, i);
+							if (tileDown != nullptr && tileDown->type != TileConfig::EMPTY)
+							{
+								tileData.minUv2 = TileConfig::getMinUvFromTileType(tileDown->type);
+							}
+							else if (tileUp != nullptr && tileUp->type != TileConfig::EMPTY)
+							{
+								tileData.minUv2 = TileConfig::getMinUvFromTileType(tileUp->type);
+							}
+							tileData.minUvMask = TileConfig::getMinUvMaskFromTileType(tile->mask);
+						}
+						this->minUvs[i].push_back(tileData);
 						this->translations[i].push_back(tile->pos*TILE_SIZE);
 					}
 				}
@@ -271,9 +302,9 @@ Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
 	const int xc = (int)posXT % CHUNK_SIZE;
 	const int yc = (int)posYT % CHUNK_SIZE;
 
-	if (!(v < NUM_CHUNKS_VERTICAL && h < NUM_CHUNKS_HORIZONTAL))
+	if (!(v < NUM_CHUNKS_VERTICAL && h < NUM_CHUNKS_HORIZONTAL && v >= 0 && h >= 0))
 		return nullptr;
-	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE))
+	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE && xc >= 0 && yc >= 0))
 		return nullptr;
 
 	return &this->chunks[v][h].tiles[yc][xc][layer];

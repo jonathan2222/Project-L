@@ -36,6 +36,10 @@ Vec4::Vec4(const Vec2 & v, float z, float w) : x(v.x), y(v.y), z(z), w(w)
 {
 }
 
+Vec4::Vec4(const Vec2 & v, const Vec2 & v2) : x(v.x), y(v.y), z(v2.x), w(v2.y)
+{
+}
+
 float & Vec4::operator[](size_t i)
 {
 	return this->*v[i];
