@@ -33,7 +33,7 @@ private:
 	Tile* getTileFromPos(float x, float y, unsigned int layer);
 
 	Shader * terrainShader;
-	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
+	Chunk* chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
 
 	Mat3 transform;
 	unsigned int maxTilesDrawn;

@@ -30,7 +30,8 @@ Terrain::Terrain()
 	for (unsigned int v = 0; v < NUM_CHUNKS_VERTICAL; v++)
 		for (unsigned int h = 0; h < NUM_CHUNKS_HORIZONTAL; h++)
 		{
-			Chunk& chunk = this->chunks[v][h];
+			this->chunks[v][h] = new Chunk();
+			Chunk& chunk = *this->chunks[v][h];
 			for(unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
 				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
 				{
@@ -52,7 +53,7 @@ Terrain::Terrain()
 					else if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
 					if (noise - padding == tile.pos.y)
 					{
-						tile.mask = (TileConfig::TILE_TYPE)((h + v + xc + yc) % 18 + 4);
+						tile.mask = (TileConfig::TILE_MASK)((h + v + xc + yc) % TileConfig::MAX_NUM_MASKS);
 					}
 					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
 					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%(TileConfig::MAX_NUM_TYPES));
@@ -71,6 +72,9 @@ Terrain::Terrain()
 
 Terrain::~Terrain()
 {
+	for (unsigned int v = 0; v < NUM_CHUNKS_VERTICAL; v++)
+		for (unsigned int h = 0; h < NUM_CHUNKS_HORIZONTAL; h++)
+			delete this->chunks[v][h];
 	delete this->terrainShader;
 }
 
@@ -307,5 +311,5 @@ Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
 	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE && xc >= 0 && yc >= 0))
 		return nullptr;
 
-	return &this->chunks[v][h].tiles[yc][xc][layer];
+	return &this->chunks[v][h]->tiles[yc][xc][layer];
 }
