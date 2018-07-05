@@ -103,7 +103,7 @@ void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useW
 
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
-	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE) / TILE_MAP_IMG_SIZE); // TODO: Make this work.
+	this->terrainShader->setUniform1f("uvScale", (float)(TILE_IMG_SIZE) / (float)TILE_MAP_IMG_SIZE); // TODO: Make this work.
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
 	if (useWireframe)

@@ -15,7 +15,7 @@ uniform float uvScale;
 
 void main()
 {	
-	fragUv = uv*uvScale;
+	fragUv = uv + uvScale*0.00000000001;
 	fragMinUv = minUv;
 	gl_Position = camera*vec4(translation+(transform*vec3(position, 1.0)).xy, -1.0, 1.0);
 }
