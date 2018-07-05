@@ -11,11 +11,10 @@ flat out vec2 fragMinUv;
 
 uniform mat4 camera;
 uniform mat3 transform;
-uniform float uvScale;
 
 void main()
 {	
-	fragUv = uv + uvScale*0.00000000001;
+	fragUv = uv;
 	fragMinUv = minUv;
 	gl_Position = camera*vec4(translation+(transform*vec3(position, 1.0)).xy, -1.0, 1.0);
 }

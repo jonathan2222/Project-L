@@ -6,15 +6,13 @@ flat in vec2 fragMinUv;
 out vec4 finalColor;
 
 uniform sampler2D tex;
+uniform int tileSize;
 
 void main()
 {
-	//vec4 texColor = texture(tex, fragMinUv + fragUv);
-	//vec4 texColor = textureOffset(tex, fragMinUv, ivec2(fragUv.x*8, fragUv.y*8));
-
-	ivec2 iuv = ivec2(fragUv.x*16, fragUv.y*16);
-	iuv.x = min(iuv.x, 15);
-	iuv.y = min(iuv.y, 15);
-	vec4  texColor = texelFetch(tex, ivec2(fragMinUv.x*1024 + iuv.x, fragMinUv.y*1024 + iuv.y), 0);
+	ivec2 iuv = ivec2(fragUv.x, fragUv.y);
+	iuv.x = min(iuv.x, tileSize-1);
+	iuv.y = min(iuv.y, tileSize-1);
+	vec4  texColor = texelFetch(tex, ivec2(fragMinUv.x + iuv.x, fragMinUv.y + iuv.y), 0);
 	finalColor = vec4(texColor.rgb, texColor.a);
 }

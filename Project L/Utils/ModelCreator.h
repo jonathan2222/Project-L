@@ -7,7 +7,7 @@
 class ModelCreator
 {
 public:
-	static Model * createRectangleModel(float width, float height, const Vec2 & origin = Vec2(0.0f, 0.0f))
+	static Model * createRectangleModel(float width, float height, float uvScale = 1.0f, const Vec2 & origin = Vec2(0.0f, 0.0f))
 	{
 		Model* model = new Model();
 
@@ -20,9 +20,9 @@ public:
 		
 		Vertex vertices[4] = {
 			{ tl, Vec2(0.0f, 0.0f) },
-			{ tr, Vec2(1.0f, 0.0f) },
-			{ br, Vec2(1.0f, 1.0f) },
-			{ bl, Vec2(0.0f, 1.0f) }
+			{ tr, Vec2(uvScale, 0.0f) },
+			{ br, Vec2(uvScale, uvScale) },
+			{ bl, Vec2(0.0f, uvScale) }
 		};
 
 		model->vb.make(vertices, sizeof(Vertex) * 4);

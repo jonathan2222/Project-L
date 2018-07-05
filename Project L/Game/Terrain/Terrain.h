@@ -30,7 +30,7 @@ private:
 	void createModel(const std::string& name, unsigned int maxSize);
 	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
-	Tile& getTileFromPos(float x, float y, unsigned int layer);
+	Tile* getTileFromPos(float x, float y, unsigned int layer);
 
 	Shader * terrainShader;
 	Chunk chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];

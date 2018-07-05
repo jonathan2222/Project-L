@@ -3,8 +3,7 @@
 
 #define TILE_IMG_SIZE 16
 #define TILE_MAP_IMG_SIZE 1024
-#define MIN_UV(indexX, indexY) Vec2(((float)(indexX*TILE_IMG_SIZE))/(float)TILE_MAP_IMG_SIZE, \
-									((float)(indexY*TILE_IMG_SIZE))/(float)TILE_MAP_IMG_SIZE)
+#define MIN_UV(indexX, indexY) Vec2((float)(indexX*TILE_IMG_SIZE), (float)(indexY*TILE_IMG_SIZE))
 
 struct TileConfig
 {
