@@ -20,7 +20,14 @@ void VertexArray::addBuffer(const VertexBuffer & vertexBuffer, const VertexBuffe
 	{
 		const auto& element = elements[i];
 		glEnableVertexAttribArray((int)this->nextLocation);
-		glVertexAttribPointer((int)this->nextLocation, element.count, element.type, element.normalized, layout.getStride(), (const void*)offset);
+		if (element.type == GL_UNSIGNED_INT)
+		{
+			glVertexAttribIPointer((int)this->nextLocation, element.count, element.type, layout.getStride(), (const void*)offset);
+		}
+		else
+		{
+			glVertexAttribPointer((int)this->nextLocation, element.count, element.type, element.normalized, layout.getStride(), (const void*)offset);
+		}
 		offset += element.count*VertexBufferElement::getSizeOfType(element.type);
 		if (instanced)
 			glVertexAttribDivisor(this->nextLocation, 1);

@@ -25,6 +25,7 @@ struct TileConfig
 	{
 		MASK_EMPTY = 0,
 		MASK_PATCH_FULL = 1,
+
 		MASK_PATCH_TL,
 		MASK_PATCH_TR,
 		MASK_PATCH_BL,
@@ -33,15 +34,34 @@ struct TileConfig
 		MASK_PATCH_L,
 		MASK_PATCH_R,
 		MASK_PATCH_B,
+
+		MASK_PATCH_CONNECT_TL,
+		MASK_PATCH_CONNECT_TR,
+		MASK_PATCH_CONNECT_BL,
+		MASK_PATCH_CONNECT_BR,
+		MASK_PATCH_CONNECT_T,
+		MASK_PATCH_CONNECT_B,
+		MASK_PATCH_CONNECT_L,
+		MASK_PATCH_CONNECT_R,
+
+		MASK_PATCH_CONNECT_INV_TL,
+		MASK_PATCH_CONNECT_INV_TR,
+		MASK_PATCH_CONNECT_INV_BL,
+		MASK_PATCH_CONNECT_INV_BR,
+		MASK_PATCH_CONNECT_INV_T,
+		MASK_PATCH_CONNECT_INV_B,
+		MASK_PATCH_CONNECT_INV_L,
+		MASK_PATCH_CONNECT_INV_R,
+
 		MASK_PATCH_SOLO,
 		MASK_PATCH_SOLO_T,
 		MASK_PATCH_SOLO_B,
 		MASK_PATCH_SOLO_L,
 		MASK_PATCH_SOLO_R,
-		MASK_PATCH_SOLO_CONNECT_T,
+		/*MASK_PATCH_SOLO_CONNECT_T,
 		MASK_PATCH_SOLO_CONNECT_B,
 		MASK_PATCH_SOLO_CONNECT_L,
-		MASK_PATCH_SOLO_CONNECT_R,
+		MASK_PATCH_SOLO_CONNECT_R,*/
 		MASK_PATCH_SOLO_CORNERS,
 		MAX_NUM_MASKS
 	};
@@ -67,23 +87,42 @@ struct TileConfig
 	{
 		switch (type)
 		{
-			case MASK_PATCH_TL:				return Vec2(MIN_UV(2, 4)); break;
-			case MASK_PATCH_TR:				return Vec2(MIN_UV(3, 4)); break;
-			case MASK_PATCH_BL:				return Vec2(MIN_UV(2, 5)); break;
-			case MASK_PATCH_BR:				return Vec2(MIN_UV(3, 5)); break;
-			case MASK_PATCH_T:				return Vec2(MIN_UV_PATCH(2, 4, 1)); break;
-			case MASK_PATCH_L:				return Vec2(MIN_UV_PATCH(2, 4, 0)); break;
-			case MASK_PATCH_R:				return Vec2(MIN_UV_PATCH(3, 4, 0)); break;
-			case MASK_PATCH_B:				return Vec2(MIN_UV_PATCH(2, 5, 1)); break;
+			case MASK_PATCH_TL:				return Vec2(MIN_UV(0, 8)); break;//return Vec2(MIN_UV(2, 4)); break;
+			case MASK_PATCH_TR:				return Vec2(MIN_UV(2, 8)); break;//return Vec2(MIN_UV(3, 4)); break;
+			case MASK_PATCH_BL:				return Vec2(MIN_UV(0, 10)); break;//return Vec2(MIN_UV(2, 5)); break;
+			case MASK_PATCH_BR:				return Vec2(MIN_UV(2, 10)); break;//return Vec2(MIN_UV(3, 5)); break;
+			case MASK_PATCH_T:				return Vec2(MIN_UV(1, 8)); break;//return Vec2(MIN_UV_PATCH(2, 4, 1)); break;
+			case MASK_PATCH_L:				return Vec2(MIN_UV(0, 9)); break;//return Vec2(MIN_UV_PATCH(2, 4, 0)); break;
+			case MASK_PATCH_R:				return Vec2(MIN_UV(2, 9)); break;//return Vec2(MIN_UV_PATCH(3, 4, 0)); break;
+			case MASK_PATCH_B:				return Vec2(MIN_UV(1, 10)); break;//return Vec2(MIN_UV_PATCH(2, 5, 1)); break;
+			
+			case MASK_PATCH_CONNECT_TL:		return Vec2(MIN_UV(3, 8)); break;
+			case MASK_PATCH_CONNECT_TR:		return Vec2(MIN_UV(5, 8)); break;
+			case MASK_PATCH_CONNECT_BL:		return Vec2(MIN_UV(3, 10)); break;
+			case MASK_PATCH_CONNECT_BR:		return Vec2(MIN_UV(5, 10)); break;
+			case MASK_PATCH_CONNECT_T:		return Vec2(MIN_UV(4, 8)); break;
+			case MASK_PATCH_CONNECT_L:		return Vec2(MIN_UV(3, 9)); break;
+			case MASK_PATCH_CONNECT_R:		return Vec2(MIN_UV(5, 10)); break;
+			case MASK_PATCH_CONNECT_B:		return Vec2(MIN_UV(4, 9)); break;
+
+			case MASK_PATCH_CONNECT_INV_TL:	return Vec2(MIN_UV(3, 11)); break;
+			case MASK_PATCH_CONNECT_INV_TR:	return Vec2(MIN_UV(5, 11)); break;
+			case MASK_PATCH_CONNECT_INV_BL:	return Vec2(MIN_UV(3, 13)); break;
+			case MASK_PATCH_CONNECT_INV_BR:	return Vec2(MIN_UV(5, 13)); break;
+			case MASK_PATCH_CONNECT_INV_T:	return Vec2(MIN_UV(4, 11)); break;
+			case MASK_PATCH_CONNECT_INV_L:	return Vec2(MIN_UV(3, 12)); break;
+			case MASK_PATCH_CONNECT_INV_R:	return Vec2(MIN_UV(5, 13)); break;
+			case MASK_PATCH_CONNECT_INV_B:	return Vec2(MIN_UV(4, 12)); break;
+
 			case MASK_PATCH_SOLO:			return Vec2(MIN_UV(1, 4)); break;
 			case MASK_PATCH_SOLO_T:			return Vec2(MIN_UV(2, 6)); break;
 			case MASK_PATCH_SOLO_B:			return Vec2(MIN_UV(3, 6)); break;
 			case MASK_PATCH_SOLO_L:			return Vec2(MIN_UV(2, 7)); break;
 			case MASK_PATCH_SOLO_R:			return Vec2(MIN_UV(3, 7)); break;
-			case MASK_PATCH_SOLO_CONNECT_T:	return Vec2(MIN_UV(4, 5)); break;
+			/*case MASK_PATCH_SOLO_CONNECT_T:	return Vec2(MIN_UV(4, 5)); break;
 			case MASK_PATCH_SOLO_CONNECT_B:	return Vec2(MIN_UV(5, 5)); break;
 			case MASK_PATCH_SOLO_CONNECT_L:	return Vec2(MIN_UV(5, 4)); break;
-			case MASK_PATCH_SOLO_CONNECT_R:	return Vec2(MIN_UV(4, 4)); break;
+			case MASK_PATCH_SOLO_CONNECT_R:	return Vec2(MIN_UV(4, 4)); break;*/
 			case MASK_PATCH_SOLO_CORNERS:	return Vec2(MIN_UV(1, 5)); break;
 			case MASK_PATCH_FULL:			return Vec2(MIN_UV(0, 5)); break;
 			case MASK_EMPTY:

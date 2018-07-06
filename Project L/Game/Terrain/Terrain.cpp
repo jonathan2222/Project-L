@@ -8,6 +8,7 @@
 #include "../../Maths/Maths.h"
 #include "../../Maths/MathsTransform.h"
 #include "../../Utils/Utils.h"
+#include "../../Utils/BitManipulation.h"
 
 #include "../../GUI/Display.h"
 #include <cassert>
@@ -140,13 +141,17 @@ void Terrain::createModel(const std::string & name, unsigned int maxSize)
 	model->va.addBuffer(model->vbInstanced, instancedLayout, true);
 
 	// Create buffer for min uv, use same instanced layout
-	model->vbInstanced2.make(NULL, sizeof(float) * 12 * maxSize, GL_STREAM_DRAW);
+	model->vbInstanced2.make(NULL, sizeof(float) * 19 * maxSize, GL_STREAM_DRAW);
 	VertexBufferLayout instancedLayoutMinUv;
 	instancedLayoutMinUv.push<float>(2); // Min uv
-	instancedLayoutMinUv.push<float>(2); // Min uv 2 (Second type)
+	instancedLayoutMinUv.push<float>(2); // Min uv2
+	instancedLayoutMinUv.push<float>(2); // Min uv left
+	instancedLayoutMinUv.push<float>(2); // Min uv right
+	instancedLayoutMinUv.push<float>(2); // Min uv up
+	instancedLayoutMinUv.push<float>(2); // Min uv down
 	instancedLayoutMinUv.push<float>(2); // Min uv mask
-	instancedLayoutMinUv.push<float>(2); // Min uv mask2
-	instancedLayoutMinUv.push<float>(4); // Mask2 dir (Which corner) (tl, tr, bl, br)
+	instancedLayoutMinUv.push<float>(4); // Mask side (Which corner) (tl, tr, bl, br)
+	instancedLayoutMinUv.push<unsigned int>(1); // Random bits.
 	model->va.addBuffer(model->vbInstanced2, instancedLayoutMinUv, true);
 
 	ModelManager::add(name, model);
@@ -193,9 +198,13 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							Vec2 wirePos = TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME);
 							tileData.minUv = wirePos;
 							tileData.minUv2 = wirePos;
+							tileData.minUvLeft = TileConfig::getMinUvFromTileType(TileConfig::EMPTY);
+							tileData.minUvRight = TileConfig::getMinUvFromTileType(TileConfig::EMPTY);
+							tileData.minUvUp = TileConfig::getMinUvFromTileType(TileConfig::EMPTY);
+							tileData.minUvDown = TileConfig::getMinUvFromTileType(TileConfig::EMPTY);
 							tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
-							tileData.minUvMask2 = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
-							tileData.mask2Dir = Vec4(0,0,0,0);
+							tileData.maskSide = Vec4(0,0,0,0);
+							tileData.randomBits = 0;
 						}
 						else
 						{
@@ -204,16 +213,45 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							{
 								TileConfig::TILE_MASK mask;
 								TileConfig::TILE_MASK mask2 = TileConfig::MASK_PATCH_FULL;
-								Vec4 mask2Dir(0.0f, 0.0f, 0.0f, 0.0f);
-								TileConfig::TILE_TYPE type;
-								calculateMaskAndType2(mask, type, mask2, mask2Dir, posX, posY, i);
-								tileData.minUv2 = TileConfig::getMinUvFromTileType(type);
+								Vec4 maskSide(0.0f, 0.0f, 0.0f, 0.0f);
+								TileConfig::TILE_TYPE type2 = TileConfig::EMPTY;
+								TileConfig::TILE_TYPE typeLeft;
+								TileConfig::TILE_TYPE typeRight;
+								TileConfig::TILE_TYPE typeUp;
+								TileConfig::TILE_TYPE typeDown;
+								calculateMaskAndType(tile->type, type2, mask, typeLeft, typeRight, typeUp, typeDown, maskSide, posX, posY, i);
+								tileData.minUv2 = TileConfig::getMinUvFromTileType(type2);
+								tileData.minUvLeft = TileConfig::getMinUvFromTileType(typeLeft);
+								tileData.minUvRight = TileConfig::getMinUvFromTileType(typeRight);
+								tileData.minUvUp = TileConfig::getMinUvFromTileType(typeUp);
+								tileData.minUvDown = TileConfig::getMinUvFromTileType(typeDown);
 								tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(mask);
-								tileData.minUvMask2 = TileConfig::getMinUvMaskFromTileMask(mask2);
-								tileData.mask2Dir = mask2Dir;
+								tileData.maskSide = maskSide;
+								tileData.randomBits = getRandomBits();
+
+								tile->type2 = type2;
+								tile->typeLeft = typeLeft;
+								tile->typeRight = typeRight;
+								tile->typeUp = typeUp;
+								tile->typeDown = typeDown;
+								tile->mask = mask;
+								tile->maskSide = maskSide;
+								tile->randomBits = tileData.randomBits;
+							}
+							else
+							{
+								tileData.minUv2 = TileConfig::getMinUvFromTileType(tile->type2);
+								tileData.minUvLeft = TileConfig::getMinUvFromTileType(tile->typeLeft);
+								tileData.minUvRight = TileConfig::getMinUvFromTileType(tile->typeRight);
+								tileData.minUvUp = TileConfig::getMinUvFromTileType(tile->typeUp);
+								tileData.minUvDown = TileConfig::getMinUvFromTileType(tile->typeDown);
+								tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(tile->mask);
+								tileData.maskSide = tile->maskSide;
+								tileData.randomBits = tile->randomBits;
 							}
 							
 						}
+
 						this->minUvs[i].push_back(tileData);
 						this->translations[i].push_back(tile->pos*TILE_SIZE);
 					}
@@ -296,12 +334,12 @@ void Terrain::processInput(Display* display)
 	}
 }
 
-void Terrain::calculateMaskAndType2(TileConfig::TILE_MASK& mask, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask2, Vec4& mask2Dir, float x, float y, unsigned int layer)
+void Terrain::calculateMaskAndType(TileConfig::TILE_TYPE thisType, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask, TileConfig::TILE_TYPE& typeLeft, TileConfig::TILE_TYPE& typeRight, TileConfig::TILE_TYPE& typeUp, TileConfig::TILE_TYPE& typeDown, Vec4& maskSide, float x, float y, unsigned int layer)
 {
-	Tile* down = getTileFromPos(x, y - 1, layer);
-	Tile* up = getTileFromPos(x, y + 1, layer);
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
+	Tile* up = getTileFromPos(x, y + 1, layer);
+	Tile* down = getTileFromPos(x, y - 1, layer);
 	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
 		Tile* tl = getTileFromPos(x - 1, y + 1, layer);
@@ -309,34 +347,58 @@ void Terrain::calculateMaskAndType2(TileConfig::TILE_MASK& mask, TileConfig::TIL
 		Tile* bl = getTileFromPos(x - 1, y - 1, layer);
 		Tile* br = getTileFromPos(x + 1, y - 1, layer);
 		mask = TileConfig::MASK_PATCH_FULL;
-		mask2 = TileConfig::MASK_PATCH_SOLO_CORNERS;
+
+		if (thisType != left->type)
+		{
+			maskSide.x = 1.0;
+			typeLeft = left->type;
+		}
+		else typeLeft = TileConfig::EMPTY;
 		
+		if (thisType != right->type)
+		{
+			maskSide.y = 1.0;
+			typeRight = right->type;
+		}
+		else typeRight = TileConfig::EMPTY;
+
+		if (thisType != up->type)
+		{
+			maskSide.z = 1.0;
+			typeUp = up->type;
+		}
+		else typeUp = TileConfig::EMPTY;
+		
+		if (thisType != down->type)
+		{
+			maskSide.w = 1.0;
+			typeDown = down->type;
+		}
+		else typeDown = TileConfig::EMPTY;
+		
+		/*
 		static TileConfig::TILE_TYPE typeArr[8] = { TileConfig::EMPTY };
 		typeArr[0] = down->type;
 		typeArr[1] = left->type;
 		typeArr[2] = right->type;
-
 		if (TILE_GONE(tl))
 		{
-			mask2Dir.x = 1;
+			maskSide.x = 1;
 			typeArr[3] = TileConfig::EMPTY;
 		}
 		else typeArr[3] = tl->type;
 		if (TILE_GONE(tr))
 		{
-			mask2Dir.y = 1;
 			typeArr[4] = TileConfig::EMPTY;
 		}
 		else typeArr[4] = tr->type;
 		if (TILE_GONE(bl))
 		{
-			mask2Dir.z = 1;
 			typeArr[5] = TileConfig::EMPTY;
 		}
 		else typeArr[5] = bl->type;
 		if (TILE_GONE(br))
 		{
-			mask2Dir.w = 1;
 			typeArr[6] = TileConfig::EMPTY;
 		}
 		else typeArr[6] = br->type;
@@ -360,29 +422,51 @@ void Terrain::calculateMaskAndType2(TileConfig::TILE_MASK& mask, TileConfig::TIL
 			}
 		}
 		type2 = type;
+		*/
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
 		mask = TileConfig::TILE_MASK::MASK_PATCH_T;
+		typeLeft = TileConfig::EMPTY;
+		typeRight = TileConfig::EMPTY;
+		typeUp = TileConfig::EMPTY;
+		typeDown = TileConfig::EMPTY;
 		type2 = down->type;
+		/*maskSide = Vec4(1.0, 1.0, 0.0, 1.0);
+		typeLeft = left->type;
+		typeRight = right->type;
+		typeUp = TileConfig::EMPTY;
+		typeDown = down->type;*/
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
 		mask = TileConfig::TILE_MASK::MASK_PATCH_TL;
+		typeLeft = TileConfig::EMPTY;
+		typeRight = TileConfig::EMPTY;
+		typeUp = TileConfig::EMPTY;
+		typeDown = TileConfig::EMPTY;
 		type2 = down->type;
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
 		mask = TileConfig::TILE_MASK::MASK_PATCH_TR;
+		typeLeft = TileConfig::EMPTY;
+		typeRight = TileConfig::EMPTY;
+		typeUp = TileConfig::EMPTY;
+		typeDown = TileConfig::EMPTY;
 		type2 = down->type;
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
 		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_T;
+		typeLeft = TileConfig::EMPTY;
+		typeRight = TileConfig::EMPTY;
+		typeUp = TileConfig::EMPTY;
+		typeDown = TileConfig::EMPTY;
 		type2 = down->type;
 		return;
 	}
@@ -409,4 +493,53 @@ Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
 		return nullptr;
 
 	return &this->chunks[v][h]->tiles[yc][xc][layer];
+}
+
+unsigned int Terrain::getRandomBits() const
+{
+	unsigned int bits = (unsigned int)rand();
+	// Corner TL 
+	Utils::setBit<unsigned int>(bits, 0);
+	Utils::setBit<unsigned int>(bits, 1);
+	Utils::setBit<unsigned int>(bits, 27);
+
+	// Corner TR 
+	Utils::setBit<unsigned int>(bits, 6);
+	Utils::setBit<unsigned int>(bits, 7);
+	Utils::setBit<unsigned int>(bits, 8);
+
+	// Corner BR 
+	Utils::setBit<unsigned int>(bits, 13);
+	Utils::setBit<unsigned int>(bits, 14);
+	Utils::setBit<unsigned int>(bits, 15);
+
+	// Corner BL 
+	Utils::setBit<unsigned int>(bits, 20);
+	Utils::setBit<unsigned int>(bits, 21);
+	Utils::setBit<unsigned int>(bits, 22);
+	/*
+	// TL Side bits
+	setBitsIfNot(bits, 2, 3);
+	setBitsIfNot(bits, 26, 25);
+
+	// TR Side bits
+	setBitsIfNot(bits, 4, 5);
+	setBitsIfNot(bits, 9, 10);
+
+	// BR Side bits
+	setBitsIfNot(bits, 11, 12);
+	setBitsIfNot(bits, 16, 17);
+
+	// BL Side bits
+	setBitsIfNot(bits, 19, 18);
+	setBitsIfNot(bits, 24, 23);
+	*/
+	return bits;
+}
+
+void Terrain::setBitsIfNot(unsigned int& bits, unsigned int bit1, unsigned int bit2) const
+{
+	bool x = Utils::isBitSet<unsigned int>(bits, bit1);
+	bool y = Utils::isBitSet<unsigned int>(bits, bit2);
+	if (!x && !y) Utils::setBit<unsigned int>(bits, rand() % 2 + bit1);
 }
