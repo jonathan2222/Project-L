@@ -30,6 +30,7 @@ private:
 	void createModel(const std::string& name, unsigned int maxSize);
 	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
+	void calculateMaskAndType2(TileConfig::TILE_MASK& mask, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask2, Vec4& mask2Dir, float x, float y, unsigned int layer);
 	Tile* getTileFromPos(float x, float y, unsigned int layer);
 
 	Shader * terrainShader;
@@ -42,6 +43,8 @@ private:
 		Vec2 minUv;
 		Vec2 minUv2;
 		Vec2 minUvMask;
+		Vec2 minUvMask2;
+		Vec4 mask2Dir;
 	};
 	std::vector<Vec2> translations[TILE_LAYERS];
 	std::vector<TileDrawData> minUvs[TILE_LAYERS];

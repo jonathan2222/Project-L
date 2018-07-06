@@ -11,4 +11,7 @@
 #define FRONT_TILE (TILE_LAYERS-1)
 #define MIDDLE_TILE (int)(TILE_LAYERS/2.f)
 
+#define TILE_EXIST(tile) (tile != nullptr && tile->type != TileConfig::EMPTY)
+#define TILE_GONE(tile) (tile == nullptr || tile->type == TileConfig::EMPTY)
+
 #endif

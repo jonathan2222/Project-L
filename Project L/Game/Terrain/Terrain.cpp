@@ -45,22 +45,17 @@ Terrain::Terrain()
 					int padding = floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
 					if (noise < tile.pos.y) tile.type = TileConfig::EMPTY;
-					if (noise == tile.pos.y)
-					{
-						tile.type = TileConfig::GRASS;
-						tile.mask = TileConfig::MASK_PATCH_T;
-					}
+					if (noise == tile.pos.y) tile.type = TileConfig::GRASS;
 					else if (noise > tile.pos.y) tile.type = TileConfig::DIRT;
-					if (noise - padding == tile.pos.y)
-					{
-						tile.mask = (TileConfig::TILE_MASK)((h + v + xc + yc) % TileConfig::MAX_NUM_MASKS);
-					}
 					if (noise- padding > tile.pos.y) tile.type = TileConfig::STONE;
 					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%(TileConfig::MAX_NUM_TYPES));
+
+					tile.mask = TileConfig::MASK_EMPTY; // Init mask to empty.
 
 					Tile& background = chunk.tiles[yc][xc][BACK_TILE];
 					background.pos = tile.pos;
 					background.type = TileConfig::SKY;
+					background.mask = TileConfig::MASK_EMPTY;
 
 					/*Tile& foreground = chunk.tiles[yc][xc][FRONT_TILE];
 					foreground.pos = background.pos;
@@ -145,11 +140,13 @@ void Terrain::createModel(const std::string & name, unsigned int maxSize)
 	model->va.addBuffer(model->vbInstanced, instancedLayout, true);
 
 	// Create buffer for min uv, use same instanced layout
-	model->vbInstanced2.make(NULL, sizeof(float) * 6 * maxSize, GL_STREAM_DRAW);
+	model->vbInstanced2.make(NULL, sizeof(float) * 12 * maxSize, GL_STREAM_DRAW);
 	VertexBufferLayout instancedLayoutMinUv;
 	instancedLayoutMinUv.push<float>(2); // Min uv
-	instancedLayoutMinUv.push<float>(2); // Min uv mask
 	instancedLayoutMinUv.push<float>(2); // Min uv 2 (Second type)
+	instancedLayoutMinUv.push<float>(2); // Min uv mask
+	instancedLayoutMinUv.push<float>(2); // Min uv mask2
+	instancedLayoutMinUv.push<float>(4); // Mask2 dir (Which corner) (tl, tr, bl, br)
 	model->va.addBuffer(model->vbInstanced2, instancedLayoutMinUv, true);
 
 	ModelManager::add(name, model);
@@ -196,22 +193,26 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							Vec2 wirePos = TileConfig::getMinUvFromTileType(TileConfig::WIRE_FRAME);
 							tileData.minUv = wirePos;
 							tileData.minUv2 = wirePos;
-							tileData.minUvMask = wirePos;
+							tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
+							tileData.minUvMask2 = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
+							tileData.mask2Dir = Vec4(0,0,0,0);
 						}
 						else
 						{
 							tileData.minUv = TileConfig::getMinUvFromTileType(tile->type);
-							Tile* tileDown = getTileFromPos(posX, posY - 1, i);
-							Tile* tileUp = getTileFromPos(posX, posY + 1, i);
-							if (tileDown != nullptr && tileDown->type != TileConfig::EMPTY)
+							if (tile->mask == TileConfig::MASK_EMPTY) // If the mask is not set, calculate it.
 							{
-								tileData.minUv2 = TileConfig::getMinUvFromTileType(tileDown->type);
+								TileConfig::TILE_MASK mask;
+								TileConfig::TILE_MASK mask2 = TileConfig::MASK_PATCH_FULL;
+								Vec4 mask2Dir(0.0f, 0.0f, 0.0f, 0.0f);
+								TileConfig::TILE_TYPE type;
+								calculateMaskAndType2(mask, type, mask2, mask2Dir, posX, posY, i);
+								tileData.minUv2 = TileConfig::getMinUvFromTileType(type);
+								tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(mask);
+								tileData.minUvMask2 = TileConfig::getMinUvMaskFromTileMask(mask2);
+								tileData.mask2Dir = mask2Dir;
 							}
-							else if (tileUp != nullptr && tileUp->type != TileConfig::EMPTY)
-							{
-								tileData.minUv2 = TileConfig::getMinUvFromTileType(tileUp->type);
-							}
-							tileData.minUvMask = TileConfig::getMinUvMaskFromTileType(tile->mask);
+							
 						}
 						this->minUvs[i].push_back(tileData);
 						this->translations[i].push_back(tile->pos*TILE_SIZE);
@@ -293,6 +294,102 @@ void Terrain::processInput(Display* display)
 		}
 
 	}
+}
+
+void Terrain::calculateMaskAndType2(TileConfig::TILE_MASK& mask, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask2, Vec4& mask2Dir, float x, float y, unsigned int layer)
+{
+	Tile* down = getTileFromPos(x, y - 1, layer);
+	Tile* up = getTileFromPos(x, y + 1, layer);
+	Tile* left = getTileFromPos(x - 1, y, layer);
+	Tile* right = getTileFromPos(x + 1, y, layer);
+	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
+	{
+		Tile* tl = getTileFromPos(x - 1, y + 1, layer);
+		Tile* tr = getTileFromPos(x + 1, y + 1, layer);
+		Tile* bl = getTileFromPos(x - 1, y - 1, layer);
+		Tile* br = getTileFromPos(x + 1, y - 1, layer);
+		mask = TileConfig::MASK_PATCH_FULL;
+		mask2 = TileConfig::MASK_PATCH_SOLO_CORNERS;
+		
+		static TileConfig::TILE_TYPE typeArr[8] = { TileConfig::EMPTY };
+		typeArr[0] = down->type;
+		typeArr[1] = left->type;
+		typeArr[2] = right->type;
+
+		if (TILE_GONE(tl))
+		{
+			mask2Dir.x = 1;
+			typeArr[3] = TileConfig::EMPTY;
+		}
+		else typeArr[3] = tl->type;
+		if (TILE_GONE(tr))
+		{
+			mask2Dir.y = 1;
+			typeArr[4] = TileConfig::EMPTY;
+		}
+		else typeArr[4] = tr->type;
+		if (TILE_GONE(bl))
+		{
+			mask2Dir.z = 1;
+			typeArr[5] = TileConfig::EMPTY;
+		}
+		else typeArr[5] = bl->type;
+		if (TILE_GONE(br))
+		{
+			mask2Dir.w = 1;
+			typeArr[6] = TileConfig::EMPTY;
+		}
+		else typeArr[6] = br->type;
+
+		typeArr[7] = up->type; // if the same number of occured types, this will be used.
+		
+		// Get least frequent type (excluding EMPTY) around this tile and set that as the second type.
+		int counter = 9;
+		TileConfig::TILE_TYPE type = TileConfig::EMPTY;
+		TileConfig::TILE_TYPE currType = type;
+		unsigned int typesOccured[TileConfig::TILE_TYPE::MAX_NUM_TYPES] = { 0 };
+		for (unsigned int i = 0; i < 8; i++)
+			typesOccured[(TileConfig::TILE_TYPE)typeArr[i]]++;
+		for (unsigned int i = 0; i < 8; i++)
+		{
+			currType = (TileConfig::TILE_TYPE)typeArr[i];
+			if (typesOccured[currType] <= counter && currType != 0)
+			{
+				counter = typesOccured[currType];
+				type = currType;
+			}
+		}
+		type2 = type;
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
+	{
+		mask = TileConfig::TILE_MASK::MASK_PATCH_T;
+		type2 = down->type;
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
+	{
+		mask = TileConfig::TILE_MASK::MASK_PATCH_TL;
+		type2 = down->type;
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
+	{
+		mask = TileConfig::TILE_MASK::MASK_PATCH_TR;
+		type2 = down->type;
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
+	{
+		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_T;
+		type2 = down->type;
+		return;
+	}
+
+	mask = TileConfig::TILE_MASK::MASK_EMPTY;
+	type2 = TileConfig::TILE_TYPE::EMPTY;
+	return;
 }
 
 Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
