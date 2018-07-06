@@ -13,6 +13,7 @@ layout(location = 8) in vec2 minUvDown;
 layout(location = 9) in vec2 minUvMask;
 layout(location = 10) in vec4 maskSide;
 layout(location = 11) in uint randomBits;
+layout(location = 12) in uint corners;
 
 out vec2 fragUv;
 flat out vec2 fragMinUv;
@@ -24,6 +25,7 @@ flat out vec2 fragMinUvDown;
 flat out vec2 fragMinUvMask;
 flat out vec4 fragMaskSide;
 flat out uint fragRandomBits;
+flat out uint fragCorners;
 
 uniform mat4 camera;
 uniform mat3 transform;
@@ -40,5 +42,6 @@ void main()
 	fragMinUvMask = minUvMask;
 	fragMaskSide = maskSide;
 	fragRandomBits = randomBits;
+	fragCorners = corners;
 	gl_Position = camera*vec4(translation+(transform*vec3(position, 1.0)).xy, -1.0, 1.0);
 }
