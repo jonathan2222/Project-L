@@ -12,14 +12,15 @@ struct TileConfig
 {
 	enum TILE_TYPE {
 		TILE_EMPTY = 0,
+		TILE_WIRE_FRAME = 1,
+		TILE_SKY,
 
-		TILE_DIRT = 1,
+		TILE_DIRT,
 		TILE_STONE,
 		TILE_STONE_2,
 		TILE_GRASS,
-
-		TILE_WIRE_FRAME,
-		TILE_SKY,
+		TILE_STONE_GOLD,
+		
 		MAX_NUM_TYPES
 	};
 
@@ -62,9 +63,10 @@ struct TileConfig
 			case TILE_DIRT:				return Vec2(MIN_UV(0, 4)); break;
 			case TILE_STONE:			return Vec2(MIN_UV(0, 5)); break;
 			case TILE_STONE_2:			return Vec2(MIN_UV(0, 6)); break;
+			case TILE_STONE_GOLD:		return Vec2(MIN_UV(0, 7)); break;
 
 			case TILE_EMPTY:
-			default:				return Vec2(MIN_UV(0, 0));
+			default:					return Vec2(MIN_UV(0, 0));
 		}
 	}
 
@@ -139,6 +141,7 @@ struct TileConfig
 			MASK_TO_STR_CASE_RETURN(TILE_DIRT)
 			MASK_TO_STR_CASE_RETURN(TILE_STONE)
 			MASK_TO_STR_CASE_RETURN(TILE_STONE_2)
+			MASK_TO_STR_CASE_RETURN(TILE_STONE_GOLD)
 			MASK_TO_STR_CASE_RETURN(TILE_EMPTY)
 			default: return "UNKNOWN";
 		}
