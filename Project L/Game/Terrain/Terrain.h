@@ -30,6 +30,10 @@ private:
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
 	void calculateMaskAndType(Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
 	void calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
+	
+	// (v, h, xc, yc)
+	Vec4 getChunkIndicesFromPos(float x, float y);
+
 	Tile* getTileFromPos(float x, float y, unsigned int layer);
 	unsigned int getRandomBits() const;
 	void setBitsIfNot(unsigned int& bits, unsigned int bit1, unsigned int bit2) const;
