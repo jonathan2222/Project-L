@@ -11,7 +11,7 @@ public:
 	~VertexBuffer();
 
 	void make(const void* data, unsigned int size, GLenum usage = GL_STATIC_DRAW);
-	void updateData(const void* data, unsigned int size);
+	void updateData(const void* data, unsigned int size, int offset = 0);
 
 	void bind() const;
 	void unbind() const;

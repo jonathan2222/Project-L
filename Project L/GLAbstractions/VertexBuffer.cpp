@@ -25,10 +25,10 @@ void VertexBuffer::make(const void * data, unsigned int size, GLenum usage)
 	glBufferData(GL_ARRAY_BUFFER, size, data, usage);
 }
 
-void VertexBuffer::updateData(const void * data, unsigned int size)
+void VertexBuffer::updateData(const void * data, unsigned int size, int offset)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, this->id);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, size, data);
+	glBufferSubData(GL_ARRAY_BUFFER, (GLintptr)offset, size, data);
 }
 
 void VertexBuffer::bind() const

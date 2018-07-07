@@ -6,6 +6,8 @@
 #define MIN_UV(indexX, indexY) Vec2((float)(indexX*TILE_IMG_SIZE), (float)(indexY*TILE_IMG_SIZE))
 #define MIN_UV_PATCH(indexX, indexY, isHori) Vec2((float)(indexX*TILE_IMG_SIZE + isHori*(TILE_IMG_SIZE/2)), (float)(indexY*TILE_IMG_SIZE + (1 - isHori)*(TILE_IMG_SIZE/2)))
 
+#include <string>
+
 struct TileConfig
 {
 	enum TILE_TYPE {
@@ -53,7 +55,7 @@ struct TileConfig
 	{
 		switch (type)
 		{
-			case TILE_WIRE_FRAME:		return Vec2(MIN_UV(0, 0)); break;
+			case TILE_WIRE_FRAME:		return Vec2(MIN_UV(1, 0)); break;
 			case TILE_SKY:				return Vec2(MIN_UV(0, 2)); break;
 
 			case TILE_GRASS:			return Vec2(MIN_UV(0, 3)); break;
@@ -62,7 +64,7 @@ struct TileConfig
 			case TILE_STONE_2:			return Vec2(MIN_UV(0, 6)); break;
 
 			case TILE_EMPTY:
-			default:				return Vec2(MIN_UV(1, 0));
+			default:				return Vec2(MIN_UV(0, 0));
 		}
 	}
 

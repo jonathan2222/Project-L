@@ -27,8 +27,6 @@ Terrain::Terrain()
 
 	this->recalculateMask = false;
 	this->randomNumber = rand();
-
-	createTileVAO();
 	
 	// Create Tiles and chunks.
 	for (unsigned int v = 0; v < NUM_CHUNKS_VERTICAL; v++)
@@ -36,10 +34,11 @@ Terrain::Terrain()
 		{
 			this->chunks[v][h] = new Chunk();
 			Chunk& chunk = *this->chunks[v][h];
+			this->chunksToDraw.push_back({ v, h });
 			for(unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
 				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
 				{
-					Tile& tile = chunk.tiles[yc][xc][MIDDLE_TILE]; // Set the middle tile.
+					Tile& tile = chunk.tiles[MIDDLE_TILE][yc][xc]; // Set the middle tile.
 					int cunkOffsetX = (h - (int)(NUM_CHUNKS_HORIZONTAL / 2)) * CHUNK_SIZE - CHUNK_SIZE / 2;
 					int cunkOffsetY = (v - (int)(NUM_CHUNKS_VERTICAL / 2)) * CHUNK_SIZE - CHUNK_SIZE /2;
 					tile.pos = Vec2((float)xc + (float)cunkOffsetX,
@@ -48,25 +47,29 @@ Terrain::Terrain()
 					float noise = Utils::perlinNoise(posX*0.05f, 0.5f, 2.0f, 4, Utils::COSINE_INTERPOLATION);
 					int padding = floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
-					if (noise < tile.pos.y) tile.type = TileConfig::TILE_EMPTY;
-					if (noise == tile.pos.y) tile.type = TileConfig::TILE_GRASS;
-					else if (noise > tile.pos.y) tile.type = TileConfig::TILE_DIRT;
-					if (noise- padding > tile.pos.y) tile.type = rand()%5 == 0 ? TileConfig::TILE_STONE_2 : TileConfig::TILE_STONE;
-					//tile.type = (TileConfig::TILE_TYPE)((h+v+xc+yc)%(TileConfig::MAX_NUM_TYPES));
+					if (noise < tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+					if (noise == tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_GRASS);
+					else if (noise > tile.pos.y) tile.minUv =TileConfig::getMinUvFromTileType(TileConfig::TILE_DIRT);
+					if (noise- padding > tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(rand()%5 == 0 ? TileConfig::TILE_STONE_2 : TileConfig::TILE_STONE);
+					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((h+v+xc+yc)%(TileConfig::MAX_NUM_TYPES)));
 
-					tile.mask = TileConfig::MASK_EMPTY; // Init mask to empty.
-
-					Tile& background = chunk.tiles[yc][xc][BACK_TILE];
+					tile.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);// TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY); // Init mask to empty.
+					
+					Tile& background = chunk.tiles[BACK_TILE][yc][xc];
 					background.pos = tile.pos;
-					background.type = TileConfig::TILE_SKY;
-					background.mask = TileConfig::MASK_EMPTY;
-
-					/*Tile& foreground = chunk.tiles[yc][xc][FRONT_TILE];
-					foreground.pos = background.pos;
-					if (noise < foreground.pos.y) foreground.type = TileConfig::EMPTY;
-					else foreground.type = TileConfig::TILE_WIRE_FRAME;*/
+					background.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_SKY);
+					background.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
+					
+					/*
+					Tile& foreground = chunk.tiles[FRONT_TILE][yc][xc];
+					foreground.pos = tile.pos;
+					foreground.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+					foreground.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
+					*/
 				}
 		}
+	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+		this->chunks[chunkIndex.first][chunkIndex.second]->updateLayers();
 }
 
 Terrain::~Terrain()
@@ -88,94 +91,113 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 
 	getTilesToDraw(display, useWireframe);
 
-	unsigned int i = MIDDLE_TILE;
-	for (unsigned int i = 0; i < TILE_LAYERS; i++)
-	{
-		drawLayer(renderer, i, useWireframe);
-		this->translations[i].clear();
-		this->minUvs[i].clear();
-	}
+	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+		drawChunk(this->chunks[chunkIndex.first][chunkIndex.second], renderer, useWireframe);
 }
 
-void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useWireframe)
+void Terrain::drawChunk(Chunk* chunk, const Renderer& renderer, bool useWireframe)
 {
-	Model* m = ModelManager::get("TileModelInstanced" + std::to_string(layer));
-	m->count = this->minUvs[layer].size();
-	if (m->count > 0)
-	{
-		m->vbInstanced.updateData(&this->translations[layer][0][0], sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(&this->minUvs[layer][0].minUv, sizeof(TileDrawData)*m->count);
-	}
-	else
-	{
-		m->vbInstanced.updateData(NULL, sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(NULL, sizeof(TileDrawData)*m->count);
-	}
-
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
 	this->terrainShader->setUniform1i("tileSize", TILE_IMG_SIZE);
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
-	if (useWireframe)
-		renderer.drawInstanced(GL_LINE_LOOP, m->va, m->ib, m->count);
-	else
-		renderer.drawInstanced(m->va, m->ib, m->count);
-}
-
-void Terrain::createTileVAO()
-{
-	// TODO: SET THE RIGHT MAX COUNT OF INSTANCES TO THE AMOUNT OF TILES IT TAKES TO FILL THE SCREEN.
-	this->maxTilesDrawn = 10000;
-	for(unsigned int i = 0; i < TILE_LAYERS; i++)
-		createModel("TileModelInstanced" + std::to_string(i), this->maxTilesDrawn);
-}
-
-void Terrain::createModel(const std::string & name, unsigned int maxSize)
-{
-	Model* model = ModelCreator::createRectangleModel(1.0f, 1.0f, TILE_IMG_SIZE);
-	model->isInstanced = true;
-	model->count = 0;
-
-	// Create buffer for translation
-	model->vbInstanced.make(NULL, sizeof(float) * 2 * maxSize, GL_STREAM_DRAW);
-	VertexBufferLayout instancedLayout;
-	instancedLayout.push<float>(2); // Translation
-	model->va.addBuffer(model->vbInstanced, instancedLayout, true);
-
-	// Create buffer for min uv, use same instanced layout
-	model->vbInstanced2.make(NULL, sizeof(float) * 20 * maxSize, GL_STREAM_DRAW);
-	VertexBufferLayout instancedLayoutMinUv;
-	instancedLayoutMinUv.push<float>(2); // Min uv
-	instancedLayoutMinUv.push<float>(2); // Min uv2
-	instancedLayoutMinUv.push<float>(2); // Min uv left
-	instancedLayoutMinUv.push<float>(2); // Min uv right
-	instancedLayoutMinUv.push<float>(2); // Min uv up
-	instancedLayoutMinUv.push<float>(2); // Min uv down
-	instancedLayoutMinUv.push<float>(2); // Min uv mask
-	instancedLayoutMinUv.push<float>(4); // Mask side (Which corner) (tl, tr, bl, br)
-	instancedLayoutMinUv.push<unsigned int>(1); // Random bits.
-	instancedLayoutMinUv.push<unsigned int>(1); // Corners.
-	model->va.addBuffer(model->vbInstanced2, instancedLayoutMinUv, true);
-
-	ModelManager::add(name, model);
+	for (unsigned int i = 0; i < TILE_LAYERS; i++)
+		chunk->draw(renderer, i, useWireframe);
 }
 
 void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 {
 	bool calcDetail = false;
-	Vec3 camPos = camera.getPosition() / TILE_SIZE;
+	/*Vec3 camPos = camera.getPosition() / TILE_SIZE;
 	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE + 1.0f;
 	float numTilesY = camera.getZoom() / TILE_SIZE + 1.0f;
-	if ((int)numTilesX % 2 != 0) numTilesX++;
-	if ((int)numTilesY % 2 != 0) numTilesY++;
-	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;		// Not used
+	if ((int)round(numTilesX) % 2 != 0) numTilesX++;
+	if ((int)round(numTilesY) % 2 != 0) numTilesY++;
+	numTilesX = round(numTilesX);
+	numTilesY = round(numTilesY);
+	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;
+
+	const float posX = camPos.x;
+	const float posY = camPos.y;
+	*/
+	static const Vec2 TILE_UV_EMPTY = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+	static const Vec2 MASK_UV_EMPTY = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
 	
-	for (unsigned int i = 0; i < TILE_LAYERS; i++)
+	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
 	{
-		this->translations[i].reserve(numTiles);
-		this->minUvs[i].reserve(numTiles);
+		Chunk* chunk = this->chunks[chunkIndex.first][chunkIndex.second];
+		for (unsigned int i = 0; i < TILE_LAYERS; i++)
+		{
+			for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
+			{
+				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
+				{
+					Tile& tile = chunk->tiles[i][xc][yc];
+					if (tile.minUv != TILE_UV_EMPTY)
+					{
+						if ((tile.minUvMask == MASK_UV_EMPTY) || this->recalculateMask)
+						{
+							calcDetail = true;
+							Vec2 minUvMask;
+							Vec2 minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+
+							calculateMaskAndType(minUv2, minUvMask, tile.pos.x, tile.pos.y, i);
+
+							tile.minUv2 = minUv2;
+							tile.minUvLeft = TILE_UV_EMPTY;
+							tile.minUvRight = TILE_UV_EMPTY;
+							tile.minUvUp = TILE_UV_EMPTY;
+							tile.minUvDown = TILE_UV_EMPTY;
+							tile.minUvMask = minUvMask;
+
+							tile.maskSide = Vec4(0, 0, 0, 0);
+							tile.randomBits = getRandomBits();
+							tile.corners = 0;
+						}
+					}
+				}
+			}
+		}
 	}
+	if (calcDetail)
+	{
+		for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+		{
+			Chunk* chunk = this->chunks[chunkIndex.first][chunkIndex.second];
+			for (unsigned int i = 0; i < TILE_LAYERS; i++)
+			{
+				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
+				{
+					for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
+					{
+						Tile& tile = chunk->tiles[i][xc][yc];
+						if (tile.minUv != TILE_UV_EMPTY)
+						{
+							Vec2 minUvLeft = TILE_UV_EMPTY;
+							Vec2 minUvRight = TILE_UV_EMPTY;
+							Vec2 minUvUp = TILE_UV_EMPTY;
+							Vec2 minUvDown = TILE_UV_EMPTY;
+							Vec4 maskSide;
+							unsigned int corners = 0;
+							calculateDetail(tile.minUv, minUvLeft, minUvRight, minUvUp, minUvDown, maskSide, corners, tile.pos.x, tile.pos.y, i);
+							tile.minUvLeft = minUvLeft;
+							tile.minUvRight = minUvRight;
+							tile.minUvUp = minUvUp;
+							tile.minUvDown = minUvDown;
+							tile.maskSide = maskSide;
+							tile.corners = corners;
+						}
+					}
+				}
+			}
+		}
+		for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+			this->chunks[chunkIndex.first][chunkIndex.second]->updateLayers();
+	}
+
+	this->recalculateMask = false;
+	/*
 	const int halfTilesToDrawX = floor(numTilesX / 2.0f);
 	const int halfTilesToDrawY = floor(numTilesY / 2.0f);
 	for(int x = -halfTilesToDrawX; x <= halfTilesToDrawX; x++)
@@ -304,6 +326,7 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 	}
 	if(this->recalculateMask)
 		this->recalculateMask = false;
+	*/
 }
 
 // TODO: MOVE THIS!, Temporary, should be in a separate class or in another class.
@@ -378,11 +401,11 @@ void Terrain::processInput(Display* display)
 			Tile* tile = getTileFromPos(tilePos.x, tilePos.y, MIDDLE_TILE);
 			if (tile != nullptr)
 			{
-				std::cout << "Tile pos: " << Utils::toString(tilePos) << ", type: " << TileConfig::getStrFromType(tile->type) << ", mask: " << TileConfig::getStrFromMask(tile->mask) << std::endl << std::endl;
+				std::cout << "Tile pos: " << Utils::toString(tilePos) << std::endl << std::endl;// << ", type: " << TileConfig::getStrFromType(tile->type) << ", mask: " << TileConfig::getStrFromMask(tile->mask) << std::endl << std::endl;
 
 				// Delete tile
-				tile->type = TileConfig::TILE_EMPTY;
-				tile->mask = TileConfig::MASK_EMPTY;
+				tile->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+				tile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
 				// Update the surounding tiles.
 				this->recalculateMask = true;
 				/*
@@ -411,7 +434,7 @@ void Terrain::processInput(Display* display)
 	}
 }
 
-void Terrain::calculateMaskAndType(TileConfig::TILE_TYPE thisType, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask, float x, float y, unsigned int layer)
+void Terrain::calculateMaskAndType(Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
@@ -419,232 +442,236 @@ void Terrain::calculateMaskAndType(TileConfig::TILE_TYPE thisType, TileConfig::T
 	Tile* down = getTileFromPos(x, y - 1, layer);
 	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::MASK_PATCH_FULL;
-		type2 = TileConfig::TILE_EMPTY;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
+		minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 		return;
 	}
 	// TOP
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_T;
-		type2 = down->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_T);
+		minUv2 = down->minUv;
 		return;
 	}
 	// TOP LEFT
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TL;
-		type2 = down->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TL);
+		minUv2 = down->minUv;
 		return;
 	}
 	// TOP RIGHT
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TR;
-		type2 = down->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TR);
+		minUv2 = down->minUv;
 		return;
 	}
 	// RIGHT
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_R;
-		type2 = left->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_R);
+		minUv2 = left->minUv;
 		return;
 	}
 	// BOTTOM RIGHT
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_BR;
-		type2 = left->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_BR);
+		minUv2 = left->minUv;
 		return;
 	}
 	// BOTTOM
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_B;
-		type2 = up->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_B);
+		minUv2 = up->minUv;
 		return;
 	}
 	// BOTTOM LEFT
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_BL;
-		type2 = up->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_BL);
+		minUv2 = up->minUv;
 		return;
 	}
 	// LEFT
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_L;
-		type2 = right->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_L);
+		minUv2 = right->minUv;
 		return;
 	}
 	// SOLO TOP
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_T;
-		type2 = down->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_SOLO_T);
+		minUv2 = down->minUv;
 		return;
 	}
 	// SOLO RIGHT
 	else if (TILE_GONE(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_R;
-		type2 = left->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_SOLO_R);
+		minUv2 = left->minUv;
 		return;
 	}
 	// SOLO BOTTOM
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_B;
-		type2 = up->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_SOLO_B);
+		minUv2 = up->minUv;
 		return;
 	}
 	// SOLO LEFT
 	else if (TILE_GONE(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO_L;
-		type2 = right->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_SOLO_L);
+		minUv2 = right->minUv;
 		return;
 	}
 	// SOLO
 	else if (TILE_GONE(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_SOLO;
-		type2 = TileConfig::TILE_TYPE::TILE_EMPTY;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_SOLO);
+		minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_TYPE::TILE_EMPTY);
 		return;
 	}
 	// TUBE BLOCKED V
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TUBE_BLOCKED_V;
-		type2 = down->type; // TODO: CHANGE THIS TO WORK FOR TWO TYPES.
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TUBE_BLOCKED_V);
+		minUv2 = down->minUv; // TODO: CHANGE THIS TO WORK FOR TWO TYPES.
 		return;
 	}
 	// TUBE BLOCKED H
 	else if (TILE_GONE(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TUBE_BLOCKED_H;
-		type2 = left->type; // TODO: CHANGE THIS TO WORK FOR TWO TYPES.
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TUBE_BLOCKED_H);
+		minUv2 = left->minUv; // TODO: CHANGE THIS TO WORK FOR TWO TYPES.
 		return;
 	}
 	// TUBE V
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TUBE_V;
-		type2 = down->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TUBE_V);
+		minUv2 = down->minUv;
 		return;
 	}
 	// TUBE H
 	else if (TILE_GONE(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		mask = TileConfig::TILE_MASK::MASK_PATCH_TUBE_H;
-		type2 = left->type;
+		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TUBE_H);
+		minUv2 = left->minUv;
 		return;
 	}
 	// TODO: Add the rest (when many types of tiles can be beside each other)
 
-	mask = TileConfig::TILE_MASK::MASK_PATCH_FULL;
-	type2 = TileConfig::TILE_TYPE::TILE_WIRE_FRAME;
+	minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_FULL);
+	minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_TYPE::TILE_WIRE_FRAME);
 	return;
 }
 
-void Terrain::calculateDetail(TileConfig::TILE_TYPE thisType, TileConfig::TILE_TYPE& typeLeft, TileConfig::TILE_TYPE& typeRight, TileConfig::TILE_TYPE& typeUp, TileConfig::TILE_TYPE& typeDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
+void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
 	Tile* up = getTileFromPos(x, y + 1, layer);
 	Tile* down = getTileFromPos(x, y - 1, layer);
+
+	static const Vec2 TILE_UV_EMPTY = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+	static const Vec2 MASK_UV_PATCH_FULL = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
+
 	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		if (thisType != left->type && left->mask == TileConfig::MASK_PATCH_FULL)
+		if (minUv != left->minUv && left->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.x = 1.0;
-			typeLeft = left->type;
+			minUvLeft = left->minUv;
 		}
-		else typeLeft = TileConfig::TILE_EMPTY;
+		else minUvLeft = TILE_UV_EMPTY;
 
-		if (thisType != right->type && right->mask == TileConfig::MASK_PATCH_FULL)
+		if (minUv != right->minUv && right->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.y = 1.0;
-			typeRight = right->type;
+			minUvRight = right->minUv;
 		}
-		else typeRight = TileConfig::TILE_EMPTY;
+		else minUvRight = TILE_UV_EMPTY;
 
-		if (thisType != up->type && up->mask == TileConfig::MASK_PATCH_FULL)
+		if (minUv != up->minUv && up->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.z = 1.0;
-			typeUp = up->type;
+			minUvUp = up->minUv;
 		}
-		else typeUp = TileConfig::TILE_EMPTY;
+		else minUvUp = TILE_UV_EMPTY;
 
-		if (thisType != down->type && down->mask == TileConfig::MASK_PATCH_FULL)
+		if (minUv != down->minUv && down->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.w = 1.0;
-			typeDown = down->type;
+			minUvDown = down->minUv;
 		}
-		else typeDown = TileConfig::TILE_EMPTY;
+		else minUvDown = TILE_UV_EMPTY;
 
 		// TL
-		if (thisType != left->type && left->mask != TileConfig::MASK_PATCH_FULL &&
-			thisType != up->type && up->mask != TileConfig::MASK_PATCH_FULL)
+		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != up->minUv && up->minUvMask != MASK_UV_PATCH_FULL)
 		{
 			Utils::setBit<unsigned int>(corners, 0);
-			typeLeft = left->type; // Color of tl corner
+			minUvLeft = left->minUv; // Color of tl corner
 		}
 
-		if (thisType != right->type && right->mask != TileConfig::MASK_PATCH_FULL &&
-			thisType != up->type && up->mask != TileConfig::MASK_PATCH_FULL)
+		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != up->minUv && up->minUvMask != MASK_UV_PATCH_FULL)
 		{
 			Utils::setBit<unsigned int>(corners, 1);
-			typeRight = up->type; // Color of tr corner
+			minUvRight = up->minUv; // Color of tr corner
 		}
 
-		if (thisType != right->type && right->mask != TileConfig::MASK_PATCH_FULL &&
-			thisType != down->type && down->mask != TileConfig::MASK_PATCH_FULL)
+		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
 		{
 			Utils::setBit<unsigned int>(corners, 2);
-			typeUp = right->type; // Color of br corner
+			minUvUp = right->minUv; // Color of br corner
 		}
 
-		if (thisType != left->type && left->mask != TileConfig::MASK_PATCH_FULL &&
-			thisType != down->type && down->mask != TileConfig::MASK_PATCH_FULL)
+		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
 		{
 			Utils::setBit<unsigned int>(corners, 3);
-			typeDown = down->type; // Color of bl corner
+			minUvDown = down->minUv; // Color of bl corner
 		}
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
-		typeLeft = TileConfig::TILE_EMPTY;
-		typeRight = TileConfig::TILE_EMPTY;
-		typeUp = TileConfig::TILE_EMPTY;
-		typeDown = TileConfig::TILE_EMPTY;
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
-		typeLeft = TileConfig::TILE_EMPTY;
-		typeRight = TileConfig::TILE_EMPTY;
-		typeUp = TileConfig::TILE_EMPTY;
-		typeDown = TileConfig::TILE_EMPTY;
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
-		typeLeft = TileConfig::TILE_EMPTY;
-		typeRight = TileConfig::TILE_EMPTY;
-		typeUp = TileConfig::TILE_EMPTY;
-		typeDown = TileConfig::TILE_EMPTY;
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
 	{
-		typeLeft = TileConfig::TILE_EMPTY;
-		typeRight = TileConfig::TILE_EMPTY;
-		typeUp = TileConfig::TILE_EMPTY;
-		typeDown = TileConfig::TILE_EMPTY;
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
 		return;
 	}
 }
@@ -665,7 +692,7 @@ Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
 	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE && xc >= 0 && yc >= 0))
 		return nullptr;
 
-	return &this->chunks[v][h]->tiles[yc][xc][layer];
+	return &this->chunks[v][h]->tiles[layer][yc][xc];
 }
 
 unsigned int Terrain::getRandomBits() const
