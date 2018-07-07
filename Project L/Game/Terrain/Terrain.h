@@ -25,6 +25,7 @@ public:
 
 private:
 	void drawLayer(const Renderer& renderer, unsigned int layer, bool useWireframe);
+	void updateLayer(unsigned int layer);
 
 	void createTileVAO();
 	void createModel(const std::string& name, unsigned int maxSize);

@@ -88,30 +88,13 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 
 	getTilesToDraw(display, useWireframe);
 
-	unsigned int i = MIDDLE_TILE;
 	for (unsigned int i = 0; i < TILE_LAYERS; i++)
-	{
 		drawLayer(renderer, i, useWireframe);
-		this->translations[i].clear();
-		this->minUvs[i].clear();
-	}
 }
 
 void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useWireframe)
 {
 	Model* m = ModelManager::get("TileModelInstanced" + std::to_string(layer));
-	m->count = this->minUvs[layer].size();
-	if (m->count > 0)
-	{
-		m->vbInstanced.updateData(&this->translations[layer][0][0], sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(&this->minUvs[layer][0].minUv, sizeof(TileDrawData)*m->count);
-	}
-	else
-	{
-		m->vbInstanced.updateData(NULL, sizeof(Vec2)*m->count);
-		m->vbInstanced2.updateData(NULL, sizeof(TileDrawData)*m->count);
-	}
-
 	this->terrainShader->bind();
 	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
 	this->terrainShader->setUniform1i("tileSize", TILE_IMG_SIZE);
@@ -121,6 +104,17 @@ void Terrain::drawLayer(const Renderer & renderer, unsigned int layer, bool useW
 		renderer.drawInstanced(GL_LINE_LOOP, m->va, m->ib, m->count);
 	else
 		renderer.drawInstanced(m->va, m->ib, m->count);
+}
+
+void Terrain::updateLayer(unsigned int layer)
+{
+	Model* m = ModelManager::get("TileModelInstanced" + std::to_string(layer));
+	m->count = this->minUvs[layer].size();
+	if (m->count > 0)
+	{
+		m->vbInstanced.updateData(&this->translations[layer][0][0], sizeof(Vec2)*m->count);
+		m->vbInstanced2.updateData(&this->minUvs[layer][0].minUv, sizeof(TileDrawData)*m->count);
+	}
 }
 
 void Terrain::createTileVAO()
@@ -171,11 +165,11 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 	if ((int)numTilesY % 2 != 0) numTilesY++;
 	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;		// Not used
 	
-	for (unsigned int i = 0; i < TILE_LAYERS; i++)
+	/*for (unsigned int i = 0; i < TILE_LAYERS; i++)
 	{
 		this->translations[i].reserve(numTiles);
 		this->minUvs[i].reserve(numTiles);
-	}
+	}*/
 	const int halfTilesToDrawX = floor(numTilesX / 2.0f);
 	const int halfTilesToDrawY = floor(numTilesY / 2.0f);
 	for(int x = -halfTilesToDrawX; x <= halfTilesToDrawX; x++)
@@ -200,6 +194,7 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 						if (useWireframe)
 						{
 							Vec2 wirePos = TileConfig::getMinUvFromTileType(TileConfig::TILE_WIRE_FRAME);
+							calcDetail = true;
 							tileData.minUv = wirePos;
 							tileData.minUv2 = wirePos;
 							tileData.minUvLeft = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
@@ -209,6 +204,8 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							tileData.minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
 							tileData.maskSide = Vec4(0,0,0,0);
 							tileData.randomBits = 0;
+							this->minUvs[i].push_back(tileData);
+							this->translations[i].push_back(tile->pos*TILE_SIZE);
 						}
 						else
 						{
@@ -241,6 +238,8 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 								tile->maskSide = tileData.maskSide;
 								tile->randomBits = tileData.randomBits;
 								tile->corners = 0;
+								this->minUvs[i].push_back(tileData);
+								this->translations[i].push_back(tile->pos*TILE_SIZE);
 							}
 							else
 							{
@@ -254,11 +253,7 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 								tileData.randomBits = tile->randomBits;
 								tileData.corners = tile->corners;
 							}
-						}
-
-						this->minUvs[i].push_back(tileData);
-						this->translations[i].push_back(tile->pos*TILE_SIZE);
-					}
+						}					}
 				}
 			}
 		}
@@ -301,6 +296,12 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 
 			}
 		}
+		for (unsigned int i = 0; i < TILE_LAYERS; i++)
+		{
+			updateLayer(i);
+			this->translations[i].clear();
+			this->minUvs[i].clear();
+		}
 	}
 	if(this->recalculateMask)
 		this->recalculateMask = false;
@@ -315,6 +316,7 @@ void Terrain::processInput(Display* display)
 		if(newZoom > 0)
 			camera.setZoom(newZoom);
 		Error::printWarning("Zoom: " + std::to_string(newZoom));
+		this->recalculateMask = true;
 	}
 
 	static Vec2 prePos(-1, -1);
@@ -332,6 +334,7 @@ void Terrain::processInput(Display* display)
 		camera.move(translation);
 
 		prePos = mPos;
+		this->recalculateMask = true;
 	}
 	else
 	{
