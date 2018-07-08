@@ -286,18 +286,12 @@ void Terrain::processInput(Display* display)
 	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
 	float numTilesY = camera.getZoom() / TILE_SIZE;
 		
-	Vec2 mouseOffset(mPos.x/ display->getWidth() * camera.getZoom() * display->getRatio(), mPos.y / display->getHeight() * camera.getZoom());
-	mouseOffset.x -= numTilesX / 2.f - TILE_SIZE / 2.0f;
-	mouseOffset.y -= numTilesY / 2.f + TILE_SIZE / 2.0f;
+	Vec2 mouseOffset((mPos.x/ display->getWidth()-0.5f) * camera.getZoom() * display->getRatio() / TILE_SIZE, (mPos.y / display->getHeight() - 0.5f) * camera.getZoom() / TILE_SIZE);
 	mouseOffset.y = -mouseOffset.y;
-	mouseOffset.y = floor(mouseOffset.y);
-	mouseOffset.x = floor(mouseOffset.x);
 
 	Vec2 tilePos = camPos + mouseOffset;
-	//std::cout << "Cam pos: " << Utils::toString(camPos) << std::endl;
-	//std::cout << "Mouse pos: " << Utils::toString(mouseOffset) << std::endl;
-	tilePos.x = round(tilePos.x);
 	tilePos.y = round(tilePos.y);
+	tilePos.x = round(tilePos.x);
 
 	const int rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
 	const int leftBoundH = -rightBoundH;
@@ -327,7 +321,7 @@ void Terrain::processInput(Display* display)
 					this->chunks[(unsigned int)preChunkPos.x][(unsigned int)preChunkPos.y]->updateLayer(FRONT_TILE);
 				}
 				Tile* tileFront = &this->chunks[(unsigned int)chunkIndices.x][(unsigned int)chunkIndices.y]->tiles[FRONT_TILE][0][0];
-				this->infoText.setText("Tile pos: " + Utils::toString(tilePos) + ", MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask));
+				this->infoText.setText("Tile pos: " + Utils::toString(tilePos) + ", MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask) + ", Type: " + TileConfig::getStrFromMinUv(tile->minUv));
 				if (tileFront != nullptr)
 				{
 					tileFront->pos = { tilePos.x, tilePos.y };
