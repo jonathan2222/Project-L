@@ -22,6 +22,8 @@
 #include "GLAbstractions\Texture.h"
 #include "Graphics\Sprite.h"
 
+#include "GUI\Font.h"
+
 #include "Rendering\ModelManager.h"
 #include "Utils\ModelCreator.h"
 
@@ -43,6 +45,7 @@ int main()
 	Input::init(display.getWindowPtr());
 
 	glEnable(GL_TEXTURE_2D);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // For FreeType
 	ResourceManager::initResources("DefaultImage.png");
 	
 	ModelManager::add("RectangleModel", ModelCreator::createRectangleModel(1.0f, 1.0f));
@@ -63,8 +66,6 @@ int main()
 	glClearColor(0.3f, 0.3f, 0.8f, 1.0f);
 	while (display.isOpen())
 	{
-		display.processEvents();
-
 		if (display.sizeUpdated)
 		{
 			std::cout << "Resized!" << std::endl;
@@ -96,6 +97,7 @@ int main()
 
 	ModelManager::removeAll();
 	ResourceManager::freeResources();
+	Font::FREE_SHADER();
 
 	return 0;
 }

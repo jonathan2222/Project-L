@@ -8,13 +8,6 @@
 struct Tile
 {
 	Vec2 pos;
-	/*TileConfig::TILE_TYPE type = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_TYPE type2 = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_TYPE typeLeft = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_TYPE typeRight = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_TYPE typeUp = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_TYPE typeDown = TileConfig::TILE_EMPTY;
-	TileConfig::TILE_MASK mask = TileConfig::MASK_PATCH_FULL;*/
 	Vec2 minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 	Vec2 minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 	Vec2 minUvLeft = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);

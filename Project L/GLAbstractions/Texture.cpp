@@ -1,17 +1,32 @@
 #include "Texture.h"
 
-Texture::Texture() : hasImage(false), width(0), height(0)
+Texture::Texture() : width(0), height(0)
 {
+	init();
 }
 
-Texture::Texture(const Image* image) : hasImage(false)
+Texture::Texture(const Image* image)
 {
-	loadImage(image);
+	init();
+	setImage(image);
 }
 
 Texture::~Texture()
 {
 	releaseImage();
+}
+
+void Texture::setImage(const Image * image, GLint magFilter, GLint minFilter, GLint warpS, GLint warpT)
+{
+	this->width = image->width;
+	this->height = image->height;
+	bind();
+	glTexImage2D(GL_TEXTURE_2D, 0, image->internalFormat, image->width, image->height, 0, image->format, image->type, image->data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, warpS);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, warpT);
+	unbind();
 }
 
 GLuint Texture::getID() const
@@ -21,41 +36,22 @@ GLuint Texture::getID() const
 
 void Texture::bind() const
 {
-	if(this->hasImage)
-		glBindTexture(GL_TEXTURE_2D, this->id);
+	glBindTexture(GL_TEXTURE_2D, this->id);
 }
 
 void Texture::unbind() const
 {
-	if(this->hasImage)
-		glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void Texture::loadImage(const Image * image)
-{
-	if (!this->hasImage)
-	{
-		glGenTextures(1, &this->id);
-		this->hasImage = true;
-		this->width = image->width;
-		this->height = image->height;
-		bind();
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		unbind();
-	}
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Texture::releaseImage()
 {
-	if (this->hasImage)
-	{
-		glDeleteTextures(1, &this->id);
-		this->hasImage = false;
-		this->width = 0;
-		this->height = 0;
-	}
+	glDeleteTextures(1, &this->id);
+	this->width = 0;
+	this->height = 0;
+}
+
+void Texture::init()
+{
+	glGenTextures(1, &this->id);
 }

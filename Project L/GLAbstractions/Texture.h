@@ -12,17 +12,19 @@ public:
 	Texture(const Image* image);
 	~Texture();
 
+	void setImage(const Image* image, GLint magFilter = GL_NEAREST, GLint minFilter = GL_NEAREST, GLint warpS = GL_REPEAT, GLint warpT = GL_REPEAT);
+
 	GLuint getID() const;
 
 	void bind() const;
 	void unbind() const;
 
-	void loadImage(const Image* image);
 	void releaseImage();
 
 private:
+	void init();
+
 	GLuint id;
-	bool hasImage;
 	unsigned int width, height;
 };
 

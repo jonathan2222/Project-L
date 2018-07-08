@@ -62,7 +62,7 @@ vec4 getColorFromBits(in vec4 baseColor, in vec4 baseColor2, in vec4 mask, in ve
 					colorLeft.rgb*(1.0-cornerMask)*isTLCorner + 
 					colorRight.rgb*(1.0-cornerMask)*isTRCorner + 
 					colorUp.rgb*(1.0-cornerMask)*isBRCorner + 
-					colorDown.rgb*(1.0-cornerMask)*isBLCorner, fullMask.a);
+					colorDown.rgb*(1.0-cornerMask)*isBLCorner, fullMask.a*baseColor.a);
 	return color;
 }
 

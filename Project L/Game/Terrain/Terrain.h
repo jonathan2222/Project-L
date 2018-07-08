@@ -14,6 +14,8 @@
 // TODO: remove from this class
 #include "../../Input/Input.h"
 
+#include "../../GUI/TextRenderer.h"
+
 class Display;
 class Terrain
 {
@@ -28,7 +30,7 @@ private:
 
 	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
-	void calculateMaskAndType(Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
+	void calculateMaskAndType(Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
 	void calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
 	
 	// (v, h, xc, yc)
@@ -46,6 +48,11 @@ private:
 	Mat3 transform;
 	std::vector<std::pair<unsigned int, unsigned int>> chunksToDraw;
 	Camera camera;
+
+	TextRenderer textRenderer;
+	Font font;
+	Font fontSmall;
+	Text infoText;
 };
 
 #endif
