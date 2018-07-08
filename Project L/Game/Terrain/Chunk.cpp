@@ -44,6 +44,7 @@ void Chunk::createModel(unsigned int layer)
 	instancedLayoutMinUv.push<float>(4); // Mask side (Which corner) (tl, tr, bl, br)
 	instancedLayoutMinUv.push<unsigned int>(1); // Random bits.
 	instancedLayoutMinUv.push<unsigned int>(1); // Corners.
+	instancedLayoutMinUv.push<unsigned int>(1); // Flags.
 	this->models[layer]->va.addBuffer(this->models[layer]->vbInstanced2, instancedLayoutMinUv, true);
 }
 

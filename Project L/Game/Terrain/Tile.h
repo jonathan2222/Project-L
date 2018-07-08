@@ -18,6 +18,7 @@ struct Tile
 	Vec4 maskSide = Vec4(0.0);
 	unsigned int randomBits = 0;
 	unsigned int corners = 0;
+	unsigned int flags = 0;
 };
 
 #endif

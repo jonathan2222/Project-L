@@ -14,6 +14,7 @@ layout(location = 9) in vec2 minUvMask;
 layout(location = 10) in vec4 maskSide;
 layout(location = 11) in uint randomBits;
 layout(location = 12) in uint corners;
+layout(location = 13) in uint flags;
 
 out vec2 fragUv;
 flat out vec2 fragMinUv;

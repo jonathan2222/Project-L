@@ -47,7 +47,11 @@ Terrain::Terrain()
 					int padding = floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
 					if (noise < tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
-					if (noise == tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_GRASS);
+					if (noise == tile.pos.y)
+					{
+						tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_GRASS);
+						tile.flags = TileConfig::FLAG_GROW_TYPE;
+					}
 					else if (noise > tile.pos.y) tile.minUv =TileConfig::getMinUvFromTileType(TileConfig::TILE_DIRT);
 					if (noise- padding > tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(rand()%5 == 0 ? (rand() % 3 == 0 ? TileConfig::TILE_STONE_GOLD : TileConfig::TILE_STONE_2) : TileConfig::TILE_STONE);
 					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((xc+yc)%((int)TileConfig::MAX_NUM_TYPES - 3) + 3));
@@ -89,6 +93,10 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 		this->textRenderer.setFont(&this->font);
 		this->infoText.setText("Info", &this->fontSmall);
 		this->infoText.setColor({0.2f, 0.2f, 0.2f, 1.0f});
+		this->maskText.setText("Mask", &this->fontSmall);
+		this->maskText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+		this->typeText.setText("Type", &this->fontSmall);
+		this->typeText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
 		used = true;
 	}
 
@@ -108,6 +116,10 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 	float scale = 1.0f;
 	float height = this->infoText.getHeight() * 2.5f * display->getPixelYScale()*scale;
 	this->textRenderer.renderText(this->infoText, -1.0, 1.0 - height, scale, display);
+	height += this->typeText.getHeight() * 2.5f * display->getPixelYScale()*scale;
+	this->textRenderer.renderText(this->typeText, -1.0, 1.0 - height, scale, display);
+	height += this->maskText.getHeight() * 2.5f * display->getPixelYScale()*scale;
+	this->textRenderer.renderText(this->maskText, -1.0, 1.0 - height, scale, display);
 
 	//this->font.setSize(24);
 	this->textRenderer.renderText("Another test!", -1.0, -1.0, 1.0f, display);
@@ -182,7 +194,7 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							Vec2 minUvMask;
 							Vec2 minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 
-							calculateMaskAndType(tile.minUv, minUv2, minUvMask, tile.pos.x, tile.pos.y, i);
+							calculateMaskAndType(tile.flags, tile.minUv, minUv2, minUvMask, tile.pos.x, tile.pos.y, i);
 
 							tile.minUv2 = minUv2;
 							tile.minUvLeft = TILE_UV_EMPTY;
@@ -220,7 +232,7 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 							Vec2 minUvDown = TILE_UV_EMPTY;
 							Vec4 maskSide;
 							unsigned int corners = 0;
-							calculateDetail(tile.minUv, minUvLeft, minUvRight, minUvUp, minUvDown, maskSide, corners, tile.pos.x, tile.pos.y, i);
+							calculateDetail(tile.flags, tile.minUv, minUvLeft, minUvRight, minUvUp, minUvDown, maskSide, corners, tile.pos.x, tile.pos.y, i);
 							tile.minUvLeft = minUvLeft;
 							tile.minUvRight = minUvRight;
 							tile.minUvUp = minUvUp;
@@ -321,7 +333,9 @@ void Terrain::processInput(Display* display)
 					this->chunks[(unsigned int)preChunkPos.x][(unsigned int)preChunkPos.y]->updateLayer(FRONT_TILE);
 				}
 				Tile* tileFront = &this->chunks[(unsigned int)chunkIndices.x][(unsigned int)chunkIndices.y]->tiles[FRONT_TILE][0][0];
-				this->infoText.setText("Tile pos: " + Utils::toString(tilePos) + ", MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask) + ", Type: " + TileConfig::getStrFromMinUv(tile->minUv));
+				this->infoText.setText("Tile pos: " + Utils::toString(tilePos));
+				this->typeText.setText("Type: " + TileConfig::getStrFromMinUv(tile->minUv));
+				this->maskText.setText("MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask));
 				if (tileFront != nullptr)
 				{
 					tileFront->pos = { tilePos.x, tilePos.y };
@@ -354,7 +368,7 @@ void Terrain::processInput(Display* display)
 	}
 }
 
-void Terrain::calculateMaskAndType(Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
+void Terrain::calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
@@ -370,60 +384,56 @@ void Terrain::calculateMaskAndType(Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, fl
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_T);
-		//if(down->minUv != )
-		minUv2 = down->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = down->minUv;
 		return;
 	}
 	// TOP LEFT
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TL);
-		minUv2 = down->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = down->minUv;
 		return;
 	}
 	// TOP RIGHT
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_TR);
-		minUv2 = down->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = down->minUv;
 		return;
 	}
 	// RIGHT
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_R);
-		minUv2 = left->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = left->minUv;
 		return;
 	}
 	// BOTTOM RIGHT
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_GONE(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_BR);
-		minUv2 = left->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = left->minUv;
 		return;
 	}
 	// BOTTOM
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_B);
-		if(TileConfig::isMinUvMaskOfTypePatchBorder(up->minUv))
-			minUv2 = minUv;
-		else
-			minUv2 = up->minUv;
+		if((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = up->minUv;
 		return;
 	}
 	// BOTTOM LEFT
 	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_BL);
-		minUv2 = up->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = up->minUv;
 		return;
 	}
 	// LEFT
 	else if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_GONE(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::TILE_MASK::MASK_PATCH_L);
-		minUv2 = right->minUv;
+		if ((flags & TileConfig::FLAG_GROW_TYPE) == 0) minUv2 = minUv; else minUv2 = right->minUv;
 		return;
 	}
 	// SOLO TOP
@@ -496,7 +506,7 @@ void Terrain::calculateMaskAndType(Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, fl
 	return;
 }
 
-void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
+void Terrain::calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
@@ -544,6 +554,7 @@ void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec
 			minUvLeft = left->minUv; // Color of tl corner
 		}
 
+		// TR
 		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
 			minUv != up->minUv && up->minUvMask != MASK_UV_PATCH_FULL)
 		{
@@ -551,6 +562,7 @@ void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec
 			minUvRight = up->minUv; // Color of tr corner
 		}
 
+		// BR
 		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
 			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
 		{
@@ -558,11 +570,77 @@ void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec
 			minUvUp = right->minUv; // Color of br corner
 		}
 
+		// BL
 		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
 			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
 		{
 			Utils::setBit<unsigned int>(corners, 3);
 			minUvDown = down->minUv; // Color of bl corner
+		}
+		return;
+	}
+	/*
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
+	{
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
+
+		// TR
+		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != up->minUv && up->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 1);
+			minUvRight = up->minUv; // Color of tr corner
+		}
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
+	{
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
+
+		// BL
+		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 3);
+			minUvDown = down->minUv; // Color of bl corner
+		}
+		return;
+	}
+	else if (TILE_GONE(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_GONE(right))
+	{
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
+
+		// TL
+		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != up->minUv && up->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 0);
+			minUvLeft = left->minUv; // Color of tl corner
+		}
+		return;
+	}
+	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
+	{
+		minUvLeft = TILE_UV_EMPTY;
+		minUvRight = TILE_UV_EMPTY;
+		minUvUp = TILE_UV_EMPTY;
+		minUvDown = TILE_UV_EMPTY;
+
+		// BR
+		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 2);
+			minUvUp = right->minUv; // Color of br corner
 		}
 		return;
 	}
@@ -572,22 +650,22 @@ void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec
 		minUvRight = TILE_UV_EMPTY;
 		minUvUp = TILE_UV_EMPTY;
 		minUvDown = TILE_UV_EMPTY;
-		return;
-	}
-	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_EXIST(right))
-	{
-		minUvLeft = TILE_UV_EMPTY;
-		minUvRight = TILE_UV_EMPTY;
-		minUvUp = TILE_UV_EMPTY;
-		minUvDown = TILE_UV_EMPTY;
-		return;
-	}
-	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_EXIST(left) && TILE_GONE(right))
-	{
-		minUvLeft = TILE_UV_EMPTY;
-		minUvRight = TILE_UV_EMPTY;
-		minUvUp = TILE_UV_EMPTY;
-		minUvDown = TILE_UV_EMPTY;
+
+		// BR
+		if (minUv != right->minUv && right->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 2);
+			minUvUp = right->minUv; // Color of br corner
+		}
+
+		// BL
+		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
+			minUv != down->minUv && down->minUvMask != MASK_UV_PATCH_FULL)
+		{
+			Utils::setBit<unsigned int>(corners, 3);
+			minUvDown = down->minUv; // Color of bl corner
+		}
 		return;
 	}
 	else if (TILE_EXIST(down) && TILE_GONE(up) && TILE_GONE(left) && TILE_GONE(right))
@@ -598,6 +676,7 @@ void Terrain::calculateDetail(Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec
 		minUvDown = TILE_UV_EMPTY;
 		return;
 	}
+	*/
 }
 
 Vec4 Terrain::getChunkIndicesFromPos(float x, float y)

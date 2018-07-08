@@ -10,6 +10,8 @@
 
 struct TileConfig
 {
+	static const unsigned int FLAG_GROW_TYPE = 1;
+
 	enum TILE_TYPE {
 		TILE_EMPTY = 0,
 		TILE_WIRE_FRAME = 1,
