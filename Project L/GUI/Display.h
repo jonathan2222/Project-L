@@ -4,6 +4,9 @@
 #include "GL\glew.h"
 #include <GLFW/glfw3.h>
 
+#include "ft2build.h"
+#include FT_FREETYPE_H
+
 #include <string>
 
 #include "DisplayConfig.h"
@@ -11,20 +14,11 @@
 class Display
 {
 public:
-	struct MouseInput
-	{
-		float wheelDelta;
-		float wheelX;
-		float wheelY;
-		bool scrolls;
-	};
-public:
 	Display();
 	Display(const std::string& title, unsigned int width = DEFAULT_DISPLAY_WIDTH, unsigned int height = DEFAULT_DISPLAY_HEIGHT);
 	virtual ~Display();
 
 	void updateView(unsigned int width, unsigned int height);
-	void processEvents();
 
 	void setTitle(const std::string& title);
 	void setTitleSufix(const std::string& sufix);
@@ -33,8 +27,10 @@ public:
 	float getWidth() const;
 	float getHeight() const;
 	float getRatio() const;
+	float getPixelXScale() const;
+	float getPixelYScale() const;
 
-	MouseInput getMouseInput() const;
+	FT_Library& getFTLibrary();
 
 	bool isOpen() const;
 	void endFrame();
@@ -52,7 +48,7 @@ private:
 	unsigned int height;
 	std::string title;
 
-	MouseInput mouseInput;
+	FT_Library ft;
 };
 
 #endif

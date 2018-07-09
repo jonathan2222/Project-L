@@ -18,6 +18,7 @@ Display::Display(const std::string & title, unsigned int width, unsigned int hei
 
 Display::~Display()
 {
+	FT_Done_FreeType(this->ft);
 	glfwDestroyWindow(this->window);
 	glfwTerminate();
 }
@@ -27,38 +28,6 @@ void Display::updateView(unsigned int width, unsigned int height)
 	this->width = width;
 	this->height = height;
 	glViewport(0, 0, this->width, this->height);
-}
-
-void Display::processEvents()
-{
-	/*
-	sf::Event evnt;
-	this->mouseInput.scrolls = false;
-	while (this->window->pollEvent(evnt))
-	{
-		switch (evnt.type)
-		{
-		case sf::Event::Closed:
-				this->window->close();
-			break;
-		case sf::Event::KeyPressed:
-			{
-				if (evnt.key.code == sf::Keyboard::Escape)
-					this->window->close();
-			}
-			break;
-		case sf::Event::MouseWheelScrolled:
-			{
-				this->mouseInput.wheelDelta = evnt.mouseWheelScroll.delta;
-				this->mouseInput.wheelX = evnt.mouseWheelScroll.x;
-				this->mouseInput.wheelY = evnt.mouseWheelScroll.y;
-				this->mouseInput.scrolls = true;
-			}
-			break;
-		default:
-			break;
-		}
-	}*/
 }
 
 void Display::setTitle(const std::string & title)
@@ -92,9 +61,19 @@ float Display::getRatio() const
 	return (float)this->width / (float)this->height;
 }
 
-Display::MouseInput Display::getMouseInput() const
+float Display::getPixelXScale() const
 {
-	return this->mouseInput;
+	return 1.0f / getWidth();
+}
+
+float Display::getPixelYScale() const
+{
+	return 1.0f / getHeight();
+}
+
+FT_Library & Display::getFTLibrary()
+{
+	return this->ft;
 }
 
 bool Display::isOpen() const
@@ -154,7 +133,12 @@ void Display::init()
 	glfwSetInputMode(this->window, GLFW_STICKY_KEYS, GL_TRUE);
 	glfwSwapInterval(1); // V-Sync
 
-	this->mouseInput = {}; // Zero memory.
+	// --------------- INIT FREE TYPE --------------- 
+	if (FT_Init_FreeType(&this->ft))
+	{
+		Error::printError("DISPLAY::init()", "Failed to initialize Free Type library");
+		exit(EXIT_FAILURE);
+	}
 }
 
 void Display::resizeCallback(GLFWwindow * window, int width, int height)

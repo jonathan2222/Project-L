@@ -10,9 +10,12 @@
 #include "Chunk.h"
 
 #include "../Player/Camera.h"
+#include "../Player/Player.h"
 
 // TODO: remove from this class
 #include "../../Input/Input.h"
+
+#include "../../GUI/TextRenderer.h"
 
 class Display;
 class Terrain
@@ -24,15 +27,16 @@ public:
 	void draw(const Renderer& renderere, Display* display);
 
 private:
-	void drawLayer(const Renderer& renderer, unsigned int layer, bool useWireframe);
-	void updateLayer(unsigned int layer);
+	void drawChunk(Chunk* chunk, const Renderer& renderer, bool useWireframe);
 
-	void createTileVAO();
-	void createModel(const std::string& name, unsigned int maxSize);
 	void getTilesToDraw(Display* display, bool useWireframe);
 	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
-	void calculateMaskAndType(TileConfig::TILE_TYPE thisType, TileConfig::TILE_TYPE& type2, TileConfig::TILE_MASK& mask, float x, float y, unsigned int layer);
-	void calculateDetail(TileConfig::TILE_TYPE thisType, TileConfig::TILE_TYPE& typeLeft, TileConfig::TILE_TYPE& typeRight, TileConfig::TILE_TYPE& typeUp, TileConfig::TILE_TYPE& typeDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
+	void calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
+	void calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
+	
+	// (v, h, xc, yc)
+	Vec4 getChunkIndicesFromPos(float x, float y);
+
 	Tile* getTileFromPos(float x, float y, unsigned int layer);
 	unsigned int getRandomBits() const;
 	void setBitsIfNot(unsigned int& bits, unsigned int bit1, unsigned int bit2) const;
@@ -43,23 +47,15 @@ private:
 	unsigned int randomNumber;
 
 	Mat3 transform;
-	unsigned int maxTilesDrawn;
-	struct TileDrawData
-	{
-		Vec2 minUv;
-		Vec2 minUv2;
-		Vec2 minUvLeft;
-		Vec2 minUvRight;
-		Vec2 minUvUp;
-		Vec2 minUvDown;
-		Vec2 minUvMask;
-		Vec4 maskSide;
-		unsigned int randomBits;
-		unsigned int corners;
-	};
-	std::vector<Vec2> translations[TILE_LAYERS];
-	std::vector<TileDrawData> minUvs[TILE_LAYERS];
-	Camera camera;
+	std::vector<std::pair<unsigned int, unsigned int>> chunksToDraw;
+	Player player;
+
+	TextRenderer textRenderer;
+	Font font;
+	Font fontSmall;
+	Text infoText;
+	Text typeText;
+	Text maskText;
 };
 
 #endif
