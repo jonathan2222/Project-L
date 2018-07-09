@@ -135,6 +135,7 @@
     <ClCompile Include="Game\Player\Player.cpp" />
     <ClCompile Include="Game\Terrain\Chunk.cpp" />
     <ClCompile Include="Game\Terrain\Terrain.cpp" />
+    <ClCompile Include="Game\Terrain\TileConfig.cpp" />
     <ClCompile Include="GLAbstractions\IndexBuffer.cpp" />
     <ClCompile Include="Graphics\Sprite.cpp" />
     <ClCompile Include="GUI\Font.cpp" />

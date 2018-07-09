@@ -10,12 +10,6 @@
 #include "Chunk.h"
 
 #include "../Player/Camera.h"
-#include "../Player/Player.h"
-
-// TODO: remove from this class
-#include "../../Input/Input.h"
-
-#include "../../GUI/TextRenderer.h"
 
 class Display;
 class Terrain
@@ -24,23 +18,33 @@ public:
 	Terrain();
 	~Terrain();
 
-	void draw(const Renderer& renderere, Display* display);
+	void draw(Camera& camera, const Renderer& renderere, Display* display);
 
-private:
-	void drawChunk(Chunk* chunk, const Renderer& renderer, bool useWireframe);
-
-	void getTilesToDraw(Display* display, bool useWireframe);
-	void processInput(Display* display); // Temporary, should be in a separate class or in another class.
-	void calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
-	void calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
-	
 	// (v, h, xc, yc)
 	Vec4 getChunkIndicesFromPos(float x, float y);
-
 	Tile* getTileFromPos(float x, float y, unsigned int layer);
-	unsigned int getRandomBits() const;
-	void setBitsIfNot(unsigned int& bits, unsigned int bit1, unsigned int bit2) const;
 
+	Chunk* getChunk(unsigned int v, unsigned int h);
+	Tile* getTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);
+	bool removeTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);
+
+	bool removeTile(float x, float y, unsigned int layer);
+	bool isPosInsideTerrain(float x, float y) const;
+
+	void updateVisibleChunks();
+
+private:
+	void drawChunk(Camera& camera, Chunk* chunk, const Renderer& renderer, bool useWireframe);
+
+	void getVisibleChunks(Camera& camera, Display* display);
+	bool calculateMask();
+	void calculateMask(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer);
+	void calculateDetail();
+	void calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer);
+	
+	unsigned int getRandomBits() const;
+
+private:
 	Shader * terrainShader;
 	Chunk* chunks[NUM_CHUNKS_VERTICAL][NUM_CHUNKS_HORIZONTAL];
 	bool recalculateMask;
@@ -48,14 +52,6 @@ private:
 
 	Mat3 transform;
 	std::vector<std::pair<unsigned int, unsigned int>> chunksToDraw;
-	Player player;
-
-	TextRenderer textRenderer;
-	Font font;
-	Font fontSmall;
-	Text infoText;
-	Text typeText;
-	Text maskText;
 };
 
 #endif

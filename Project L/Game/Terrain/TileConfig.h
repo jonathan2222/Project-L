@@ -7,10 +7,13 @@
 #define MIN_UV_PATCH(indexX, indexY, isHori) Vec2((float)(indexX*TILE_IMG_SIZE + isHori*(TILE_IMG_SIZE/2)), (float)(indexY*TILE_IMG_SIZE + (1 - isHori)*(TILE_IMG_SIZE/2)))
 
 #include <string>
+#include "../../Maths/Vectors/Vec2.h"
 
 struct TileConfig
 {
 	static const unsigned int FLAG_GROW_TYPE = 1;
+	static const Vec2 TILE_UV_EMPTY;
+	static const Vec2 MASK_UV_EMPTY;
 
 	enum TILE_TYPE {
 		TILE_EMPTY = 0,

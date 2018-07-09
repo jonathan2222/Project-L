@@ -13,6 +13,8 @@
 #include "../../GUI/Display.h"
 #include <cassert>
 
+#include "../../Input/Input.h"
+
 Terrain::Terrain()
 {
 	this->terrainShader = new Shader("Shaders/Terrain/terrainInstanced.fs", "Shaders/Terrain/terrainInstanced.vs");
@@ -42,7 +44,7 @@ Terrain::Terrain()
 									(float)yc + (float)cunkOffsetY);
 					float posX = tile.pos.x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
 					float noise = Utils::perlinNoise(posX*0.05f, 0.5f, 2.0f, 4, Utils::COSINE_INTERPOLATION);
-					int padding = floor(noise*CHUNK_SIZE*0.7f);
+					int padding = (int)floor(noise*CHUNK_SIZE*0.7f);
 					noise = floor((noise*2.0f - 1.0f)*NUM_CHUNKS_VERTICAL*CHUNK_SIZE*0.25f);
 					if (noise < tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 					if (noise == tile.pos.y)
@@ -80,53 +82,33 @@ Terrain::~Terrain()
 	delete this->terrainShader;
 }
 
-void Terrain::draw(const Renderer & renderer, Display* display)
+void Terrain::draw(Camera& camera, const Renderer & renderer, Display* display)
 {
-	// TODO: Change this!
-	static bool used = false;
-	if (!used)
-	{
-		this->font.load("./Resources/Fonts/kongtext.ttf", 12, display);
-		this->fontSmall.load("./Resources/Fonts/kongtext.ttf", 8, display);
-		this->textRenderer.setFont(&this->font);
-		this->infoText.setText("Info", &this->fontSmall);
-		this->infoText.setColor({0.2f, 0.2f, 0.2f, 1.0f});
-		this->maskText.setText("Mask", &this->fontSmall);
-		this->maskText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-		this->typeText.setText("Type", &this->fontSmall);
-		this->typeText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
-		used = true;
-	}
 
+	// Get the cunks to be drawn.
+	this->chunksToDraw.clear();
+	getVisibleChunks(camera, display);
+
+	// Add a mask and detail to each tile in the visible chunks.
+	if (calculateMask())
+	{
+		calculateDetail();
+		for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+			this->chunks[chunkIndex.first][chunkIndex.second]->updateLayers();
+	}
+	this->recalculateMask = false;
+	
 	static bool useWireframe = false;
 	if (Input::isKeyClicked(GLFW_KEY_F))
 		useWireframe ^= 1;
-
-	player.processInput(display, this);
-
-	this->chunksToDraw.clear();
-	getTilesToDraw(display, useWireframe);
-	
 	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
-		drawChunk(this->chunks[chunkIndex.first][chunkIndex.second], renderer, useWireframe);
-	
-	// TODO: Make this faster!!!
-	float scale = 1.0f;
-	float height = this->infoText.getHeight() * 2.5f * display->getPixelYScale()*scale;
-	this->textRenderer.renderText(this->infoText, -1.0, 1.0 - height, scale, display);
-	height += this->typeText.getHeight() * 2.5f * display->getPixelYScale()*scale;
-	this->textRenderer.renderText(this->typeText, -1.0, 1.0 - height, scale, display);
-	height += this->maskText.getHeight() * 2.5f * display->getPixelYScale()*scale;
-	this->textRenderer.renderText(this->maskText, -1.0, 1.0 - height, scale, display);
-	
-	//this->font.setSize(24);
-	this->textRenderer.renderText("Another test!", -1.0, -1.0, 1.0f, display);
+		drawChunk(camera, this->chunks[chunkIndex.first][chunkIndex.second], renderer, useWireframe);
 }
 
-void Terrain::drawChunk(Chunk* chunk, const Renderer& renderer, bool useWireframe)
+void Terrain::drawChunk(Camera& camera, Chunk* chunk, const Renderer& renderer, bool useWireframe)
 {
 	this->terrainShader->bind();
-	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &player.getCamera().getMatrix()[0][0]);
+	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
 	this->terrainShader->setUniform1i("tileSize", TILE_IMG_SIZE);
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
@@ -134,71 +116,67 @@ void Terrain::drawChunk(Chunk* chunk, const Renderer& renderer, bool useWirefram
 		chunk->draw(renderer, i, useWireframe);
 }
 
-void Terrain::getTilesToDraw(Display* display, bool useWireframe)
+void Terrain::getVisibleChunks(Camera& camera, Display* display)
 {
-	bool calcDetail = false;
-	Vec3 camPos = player.getCamera().getPosition() / TILE_SIZE;
-	float numTilesX = player.getCamera().getZoom()*display->getRatio() / TILE_SIZE + 1.0f;
-	float numTilesY = player.getCamera().getZoom() / TILE_SIZE + 1.0f;
-	numTilesX = ceil(numTilesX);
-	numTilesY = ceil(numTilesY);
-	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;
+	const Vec3 camPos = camera.getPosition() / TILE_SIZE;
+	float numTilesX = ceil(camera.getZoom()*display->getRatio() / TILE_SIZE + 1.0f);
+	float numTilesY = ceil(camera.getZoom() / TILE_SIZE + 1.0f);
 
-	const float posX = camPos.x;
-	const float posY = camPos.y;
-	
-	Vec4 chunkIndices = getChunkIndicesFromPos(posX, posY);
+	Vec4 chunkIndices = getChunkIndicesFromPos(camPos.x, camPos.y);
 	if (chunkIndices.x != -1)
 	{
 		Vec2 chunkIndex(chunkIndices.x, chunkIndices.y);
 		Vec2 indexInChunk(chunkIndices.z, chunkIndices.w);
-		indexInChunk.x = CHUNK_SIZE / 2 - abs(indexInChunk.x+1 - CHUNK_SIZE / 2);
-		indexInChunk.y = CHUNK_SIZE / 2 - abs(indexInChunk.y+1 - CHUNK_SIZE / 2);
-		
+		indexInChunk.x = CHUNK_SIZE / 2 - abs(indexInChunk.x + 1 - CHUNK_SIZE / 2);
+		indexInChunk.y = CHUNK_SIZE / 2 - abs(indexInChunk.y + 1 - CHUNK_SIZE / 2);
+
 		float sideTilesX = ceil(numTilesX / 2);
 		float sideTilesY = ceil(numTilesY / 2);
 
 		float nHalfChunksH = indexInChunk.x < sideTilesX ? ceil((sideTilesX - indexInChunk.x) / CHUNK_SIZE) : 0;
 		float nHalfChunksV = indexInChunk.y < sideTilesY ? ceil((sideTilesY - indexInChunk.y) / CHUNK_SIZE) : 0;
-		//std::cout << "["<< chunkIndex.x << ", " << chunkIndex.y << "] ChunksSide [" << nHalfChunksH << ", " << nHalfChunksV << "] Tiles [" << numTilesX << ", " << numTilesY << "] TilesSide [" << sideTilesX << ", " << sideTilesY << "] IndexInChunk: " << Utils::toString(indexInChunk) << std::endl;
-		if(nHalfChunksH == 0 || nHalfChunksV == 0)
+
+		if (nHalfChunksH == 0 || nHalfChunksV == 0)
 			this->chunksToDraw.push_back({ (unsigned int)chunkIndices.x, (unsigned int)chunkIndices.y });
-		for(float i = -nHalfChunksH; i <= nHalfChunksH; i++)
+		for (float i = -nHalfChunksH; i <= nHalfChunksH; i++)
 			for (float j = -nHalfChunksV; j <= nHalfChunksV; j++)
 			{
-				unsigned int v = chunkIndex.x + j;
-				unsigned int h = chunkIndex.y + i;
+				unsigned int v = (unsigned int)(chunkIndex.x + j);
+				unsigned int h = (unsigned int)(chunkIndex.y + i);
 				if (v < NUM_CHUNKS_VERTICAL && v >= 0 && h < NUM_CHUNKS_HORIZONTAL && h >= 0)
 					this->chunksToDraw.push_back({ v, h });
 			}
 	}
-	static const Vec2 TILE_UV_EMPTY = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
-	static const Vec2 MASK_UV_EMPTY = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
+}
+
+bool Terrain::calculateMask()
+{
+	bool shouldCalculateDetail = false;
 	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
 	{
 		Chunk* chunk = this->chunks[chunkIndex.first][chunkIndex.second];
 		for (unsigned int i = 0; i < TILE_LAYERS; i++)
 		{
-			for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
+			for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
 			{
-				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
+				for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
 				{
 					Tile& tile = chunk->tiles[i][xc][yc];
-					if (tile.minUv != TILE_UV_EMPTY)
+					if (tile.minUv != TileConfig::TILE_UV_EMPTY)
 					{
-						if ((tile.minUvMask == MASK_UV_EMPTY) || this->recalculateMask)
+						if ((tile.minUvMask == TileConfig::MASK_UV_EMPTY) || this->recalculateMask)
 						{
-							calcDetail = true;
+							shouldCalculateDetail = true;
 							Vec2 minUvMask;
-							Vec2 minUv2 = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
+							Vec2 minUv2 = TileConfig::TILE_UV_EMPTY;
 
-							calculateMaskAndType(tile.flags, tile.minUv, minUv2, minUvMask, tile.pos.x, tile.pos.y, i);
+							calculateMask(tile.flags, tile.minUv, minUv2, minUvMask, tile.pos.x, tile.pos.y, i);
 
 							tile.minUv2 = minUv2;
-							tile.minUvLeft = TILE_UV_EMPTY;
-							tile.minUvRight = TILE_UV_EMPTY;
-							tile.minUvUp = TILE_UV_EMPTY;
-							tile.minUvDown = TILE_UV_EMPTY;
+							tile.minUvLeft = TileConfig::TILE_UV_EMPTY;
+							tile.minUvRight = TileConfig::TILE_UV_EMPTY;
+							tile.minUvUp = TileConfig::TILE_UV_EMPTY;
+							tile.minUvDown = TileConfig::TILE_UV_EMPTY;
 							tile.minUvMask = minUvMask;
 
 							tile.maskSide = Vec4(0, 0, 0, 0);
@@ -210,127 +188,10 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 			}
 		}
 	}
-	if (calcDetail)
-	{
-		for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
-		{
-			Chunk* chunk = this->chunks[chunkIndex.first][chunkIndex.second];
-			for (unsigned int i = 0; i < TILE_LAYERS; i++)
-			{
-				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
-				{
-					for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
-					{
-						Tile& tile = chunk->tiles[i][xc][yc];
-						if (tile.minUv != TILE_UV_EMPTY)
-						{
-							Vec2 minUvLeft = TILE_UV_EMPTY;
-							Vec2 minUvRight = TILE_UV_EMPTY;
-							Vec2 minUvUp = TILE_UV_EMPTY;
-							Vec2 minUvDown = TILE_UV_EMPTY;
-							Vec4 maskSide;
-							unsigned int corners = 0;
-							calculateDetail(tile.flags, tile.minUv, minUvLeft, minUvRight, minUvUp, minUvDown, maskSide, corners, tile.pos.x, tile.pos.y, i);
-							tile.minUvLeft = minUvLeft;
-							tile.minUvRight = minUvRight;
-							tile.minUvUp = minUvUp;
-							tile.minUvDown = minUvDown;
-							tile.maskSide = maskSide;
-							tile.corners = corners;
-						}
-					}
-				}
-			}
-		}
-		for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
-			this->chunks[chunkIndex.first][chunkIndex.second]->updateLayers();
-	}
-
-	this->recalculateMask = false;
+	return shouldCalculateDetail;
 }
 
-// TODO: MOVE THIS!, Temporary, should be in a separate class or in another class.
-void Terrain::processInput(Display* display)
-{	
-	/*
-	Vec3 camPos = camera.getPosition() / TILE_SIZE;
-	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
-	float numTilesY = camera.getZoom() / TILE_SIZE;
-		
-	Vec2 mouseOffset((mPos.x/ display->getWidth()-0.5f) * camera.getZoom() * display->getRatio() / TILE_SIZE, (mPos.y / display->getHeight() - 0.5f) * camera.getZoom() / TILE_SIZE);
-	mouseOffset.y = -mouseOffset.y;
-
-	Vec2 tilePos = camPos + mouseOffset;
-	tilePos.y = round(tilePos.y);
-	tilePos.x = round(tilePos.x);
-
-	const int rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
-	const int leftBoundH = -rightBoundH;
-	const int rightBoundV = (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
-	const int leftBoundV = -rightBoundV;
-
-	if (tilePos.x > leftBoundH && tilePos.x < rightBoundH &&
-		tilePos.y > leftBoundV && tilePos.y < rightBoundV)
-	{
-		// Cursor tile.
-		Tile* tile = getTileFromPos(tilePos.x, tilePos.y, MIDDLE_TILE);
-		if (tile != nullptr)
-		{
-			static Tile* preTile = nullptr;
-			static Vec2 preChunkPos;
-			static Vec2 preIndexInChunk(-1.0f, -1.0f);
-			Vec4 chunkIndices = getChunkIndicesFromPos(tilePos.x, tilePos.y);
-			if (chunkIndices.x != -1 && chunkIndices.z != -1)
-			{
-				if (preTile != nullptr && preChunkPos != Vec2(chunkIndices.x, chunkIndices.y))
-				{
-					preTile->pos = { 0.0f, 0.0f };
-					preTile->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
-					preTile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
-
-					// Update the previous chunk.
-					this->chunks[(unsigned int)preChunkPos.x][(unsigned int)preChunkPos.y]->updateLayer(FRONT_TILE);
-				}
-				Tile* tileFront = &this->chunks[(unsigned int)chunkIndices.x][(unsigned int)chunkIndices.y]->tiles[FRONT_TILE][0][0];
-				this->infoText.setText("Tile pos: " + Utils::toString(tilePos) + ", Chunk: " + std::to_string((unsigned int)chunkIndices.x) + ", " + std::to_string((unsigned int)chunkIndices.y) + ", Index: " + std::to_string((unsigned int)chunkIndices.z) + ", " + std::to_string((unsigned int)chunkIndices.w));
-				this->typeText.setText("Type: " + TileConfig::getStrFromMinUv(tile->minUv));
-				this->maskText.setText("MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask));
-				if (tileFront != nullptr)
-				{
-					tileFront->pos = { tilePos.x, tilePos.y };
-					tileFront->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_WIRE_FRAME);
-					tileFront->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
-
-					// Update the chunk.
-					if(preIndexInChunk != Vec2(chunkIndices.z, chunkIndices.w))
-						this->chunks[(unsigned int)chunkIndices.x][(unsigned int)chunkIndices.y]->updateLayer(FRONT_TILE);
-
-					preChunkPos = { chunkIndices.x, chunkIndices.y };
-					preIndexInChunk = { chunkIndices.z, chunkIndices.w };
-					preTile = tileFront;
-				}
-			}
-
-			// If RMB is pressed, delete the tile which the mouse is over.
-			if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_RIGHT))
-			{
-				//std::cout << "Tile pos: " << Utils::toString(tilePos) << std::endl << std::endl;// << ", type: " << TileConfig::getStrFromType(tile->type) << ", mask: " << TileConfig::getStrFromMask(tile->mask) << std::endl << std::endl;
-				
-				// Delete tile
-				tile->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
-				tile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
-				// Update the shown chunks.
-				this->recalculateMask = true;
-				//tile->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_STONE_GOLD);
-				//tile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
-			}
-		}
-
-	}
-	*/
-}
-
-void Terrain::calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
+void Terrain::calculateMask(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
 	Tile* right = getTileFromPos(x + 1, y, layer);
@@ -468,6 +329,42 @@ void Terrain::calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2,
 	return;
 }
 
+void Terrain::calculateDetail()
+{
+	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
+	{
+		Chunk* chunk = this->chunks[chunkIndex.first][chunkIndex.second];
+		for (unsigned int i = 0; i < TILE_LAYERS; i++)
+		{
+			for (unsigned int yc = 0; yc < CHUNK_SIZE; yc++)
+			{
+				for (unsigned int xc = 0; xc < CHUNK_SIZE; xc++)
+				{
+					Tile& tile = chunk->tiles[i][xc][yc];
+					if (tile.minUv != TileConfig::TILE_UV_EMPTY)
+					{
+						Vec2 minUvLeft = TileConfig::TILE_UV_EMPTY;
+						Vec2 minUvRight = TileConfig::TILE_UV_EMPTY;
+						Vec2 minUvUp = TileConfig::TILE_UV_EMPTY;
+						Vec2 minUvDown = TileConfig::TILE_UV_EMPTY;
+						Vec4 maskSide;
+						unsigned int corners = 0;
+
+						calculateDetail(tile.flags, tile.minUv, minUvLeft, minUvRight, minUvUp, minUvDown, maskSide, corners, tile.pos.x, tile.pos.y, i);
+
+						tile.minUvLeft = minUvLeft;
+						tile.minUvRight = minUvRight;
+						tile.minUvUp = minUvUp;
+						tile.minUvDown = minUvDown;
+						tile.maskSide = maskSide;
+						tile.corners = corners;
+					}
+				}
+			}
+		}
+	}
+}
+
 void Terrain::calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
 {
 	Tile* left = getTileFromPos(x - 1, y, layer);
@@ -475,7 +372,6 @@ void Terrain::calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, V
 	Tile* up = getTileFromPos(x, y + 1, layer);
 	Tile* down = getTileFromPos(x, y - 1, layer);
 
-	static const Vec2 TILE_UV_EMPTY = TileConfig::getMinUvFromTileType(TileConfig::TILE_EMPTY);
 	static const Vec2 MASK_UV_PATCH_FULL = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
 
 	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
@@ -485,28 +381,28 @@ void Terrain::calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, V
 			maskSide.x = 1.0;
 			minUvLeft = left->minUv;
 		}
-		else minUvLeft = TILE_UV_EMPTY;
+		else minUvLeft = TileConfig::TILE_UV_EMPTY;
 
 		if (minUv != right->minUv && right->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.y = 1.0;
 			minUvRight = right->minUv;
 		}
-		else minUvRight = TILE_UV_EMPTY;
+		else minUvRight = TileConfig::TILE_UV_EMPTY;
 
 		if (minUv != up->minUv && up->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.z = 1.0;
 			minUvUp = up->minUv;
 		}
-		else minUvUp = TILE_UV_EMPTY;
+		else minUvUp = TileConfig::TILE_UV_EMPTY;
 
 		if (minUv != down->minUv && down->minUvMask == MASK_UV_PATCH_FULL)
 		{
 			maskSide.w = 1.0;
 			minUvDown = down->minUv;
 		}
-		else minUvDown = TILE_UV_EMPTY;
+		else minUvDown = TileConfig::TILE_UV_EMPTY;
 
 		// TL
 		if (minUv != left->minUv && left->minUvMask != MASK_UV_PATCH_FULL &&
@@ -646,37 +542,86 @@ Vec4 Terrain::getChunkIndicesFromPos(float x, float y)
 	const float posXT = x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
 	const float posYT = y + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
 
-	const int h = floor(posXT / CHUNK_SIZE);
-	const int v = floor(posYT / CHUNK_SIZE);
+	const int h = (int)floor(posXT / CHUNK_SIZE);
+	const int v = (int)floor(posYT / CHUNK_SIZE);
 
 	const int xc = (int)posXT % CHUNK_SIZE;
 	const int yc = (int)posYT % CHUNK_SIZE;
 
 	if (!(v < NUM_CHUNKS_VERTICAL && h < NUM_CHUNKS_HORIZONTAL && v >= 0 && h >= 0))
-		return Vec4(-1, -1, -1, -1);
+		return Vec4(-1.0f, -1.0f, -1.0f, -1.0f);
 	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE && xc >= 0 && yc >= 0))
-		return Vec4(-1, -1, -1, -1);
+		return Vec4(-1.0f, -1.0f, -1.0f, -1.0f);
 
-	return Vec4(v, h, xc, yc);
+	return Vec4((float)v, (float)h, (float)xc, (float)yc);
 }
 
 Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
 {
-	const float posXT = x + (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
-	const float posYT = y + (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE / 2;
-
-	const int h = floor(posXT / CHUNK_SIZE);
-	const int v = floor(posYT / CHUNK_SIZE);
-
-	const int xc = (int)posXT % CHUNK_SIZE;
-	const int yc = (int)posYT % CHUNK_SIZE;
-
-	if (!(v < NUM_CHUNKS_VERTICAL && h < NUM_CHUNKS_HORIZONTAL && v >= 0 && h >= 0))
+	Vec4 chunkIndices = getChunkIndicesFromPos(x, y);
+	if (chunkIndices.x == -1.0f && chunkIndices.y == -1.0f && chunkIndices.z == -1.0f && chunkIndices.w == -1.0f)
 		return nullptr;
-	if (!(xc < CHUNK_SIZE && yc < CHUNK_SIZE && xc >= 0 && yc >= 0))
-		return nullptr;
+
+	const unsigned int v = (unsigned int)chunkIndices.x;
+	const unsigned int h = (unsigned int)chunkIndices.y;
+	const unsigned int xc = (unsigned int)chunkIndices.z;
+	const unsigned int yc = (unsigned int)chunkIndices.w;
 
 	return &this->chunks[v][h]->tiles[layer][yc][xc];
+}
+
+Chunk * Terrain::getChunk(unsigned int v, unsigned int h)
+{
+	return this->chunks[v][h];
+}
+
+Tile * Terrain::getTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer)
+{
+	return &this->chunks[v][h]->tiles[layer][y][x];
+}
+
+bool Terrain::removeTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer)
+{
+	Tile* tile = getTile(v, h, x, y, layer);
+	if (tile != nullptr)
+	{
+		tile->minUv = TileConfig::TILE_UV_EMPTY;
+		tile->minUvMask = TileConfig::MASK_UV_EMPTY;
+		return true;
+	}
+	return false;
+}
+
+bool Terrain::removeTile(float x, float y, unsigned int layer)
+{
+	Vec4 chunkIndices = getChunkIndicesFromPos(x, y);
+	if (chunkIndices.x == -1.0f && chunkIndices.y == -1.0f && chunkIndices.z == -1.0f && chunkIndices.w == -1.0f)
+		return false;
+
+	const unsigned int v = (unsigned int)chunkIndices.x;
+	const unsigned int h = (unsigned int)chunkIndices.y;
+	const unsigned int xc = (unsigned int)chunkIndices.z;
+	const unsigned int yc = (unsigned int)chunkIndices.w;
+
+	Tile& tile = this->chunks[v][h]->tiles[layer][yc][xc];
+	tile.minUv = TileConfig::TILE_UV_EMPTY;
+	tile.minUvMask = TileConfig::MASK_UV_EMPTY;
+	return true;
+}
+
+bool Terrain::isPosInsideTerrain(float x, float y) const
+{
+	const int rightBoundH = (int)(NUM_CHUNKS_HORIZONTAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+	const int leftBoundH = -rightBoundH;
+	const int rightBoundV = (int)(NUM_CHUNKS_VERTICAL / 2)*CHUNK_SIZE + CHUNK_SIZE;
+	const int leftBoundV = -rightBoundV;
+
+	return x > leftBoundH && x < rightBoundH && y > leftBoundV && y < rightBoundV;
+}
+
+void Terrain::updateVisibleChunks()
+{
+	this->recalculateMask = true;
 }
 
 unsigned int Terrain::getRandomBits() const
@@ -701,29 +646,5 @@ unsigned int Terrain::getRandomBits() const
 	Utils::setBit<unsigned int>(bits, 20);
 	Utils::setBit<unsigned int>(bits, 21);
 	Utils::setBit<unsigned int>(bits, 22);
-	/*
-	// TL Side bits
-	setBitsIfNot(bits, 2, 3);
-	setBitsIfNot(bits, 26, 25);
-
-	// TR Side bits
-	setBitsIfNot(bits, 4, 5);
-	setBitsIfNot(bits, 9, 10);
-
-	// BR Side bits
-	setBitsIfNot(bits, 11, 12);
-	setBitsIfNot(bits, 16, 17);
-
-	// BL Side bits
-	setBitsIfNot(bits, 19, 18);
-	setBitsIfNot(bits, 24, 23);
-	*/
 	return bits;
-}
-
-void Terrain::setBitsIfNot(unsigned int& bits, unsigned int bit1, unsigned int bit2) const
-{
-	bool x = Utils::isBitSet<unsigned int>(bits, bit1);
-	bool y = Utils::isBitSet<unsigned int>(bits, bit2);
-	if (!x && !y) Utils::setBit<unsigned int>(bits, rand() % 2 + bit1);
 }
