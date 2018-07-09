@@ -53,7 +53,7 @@ Terrain::Terrain()
 						tile.flags = TileConfig::FLAG_GROW_TYPE;
 					}
 					else if (noise > tile.pos.y) tile.minUv =TileConfig::getMinUvFromTileType(TileConfig::TILE_DIRT);
-					if (noise- padding > tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(rand()%5 == 0 ? (rand() % 3 == 0 ? TileConfig::TILE_STONE_GOLD : TileConfig::TILE_STONE_2) : TileConfig::TILE_STONE);
+					if (noise- padding > tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(rand()%5 == 0 ? (rand() % 5 == 0 ? TileConfig::TILE_STONE_GOLD : (rand()%4 == 0 ?TileConfig::TILE_STONE_2 : TileConfig::TILE_STONE_3)) : TileConfig::TILE_STONE);
 					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((xc+yc)%((int)TileConfig::MAX_NUM_TYPES - 3) + 3));
 					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((v+h+xc + yc) % (int)TileConfig::MAX_NUM_TYPES));
 
