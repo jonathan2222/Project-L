@@ -10,6 +10,7 @@
 #include "Chunk.h"
 
 #include "../Player/Camera.h"
+#include "../Player/Player.h"
 
 // TODO: remove from this class
 #include "../../Input/Input.h"
@@ -47,7 +48,7 @@ private:
 
 	Mat3 transform;
 	std::vector<std::pair<unsigned int, unsigned int>> chunksToDraw;
-	Camera camera;
+	Player player;
 
 	TextRenderer textRenderer;
 	Font font;

@@ -19,8 +19,6 @@ Terrain::Terrain()
 
 	ResourceManager::addTexture("Tile Map", "Textures/Terrain/tile_map_8x8.png"); // Map can hold 1024 different 32x32 tiles or 4096 16x16 tiles.
 
-	camera.setZoom(28.0f);
-
 	// Set the tile size.
 	this->transform[0][0] = TILE_SIZE;
 	this->transform[1][1] = TILE_SIZE;
@@ -104,15 +102,15 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 	if (Input::isKeyClicked(GLFW_KEY_F))
 		useWireframe ^= 1;
 
-	processInput(display);
-	camera.setZoom(camera.getZoom(), display->getRatio()); // Adjust aspect ratio.
+	player.processInput(display, this);
 
 	this->chunksToDraw.clear();
 	getTilesToDraw(display, useWireframe);
 	
 	for (const std::pair<unsigned int, unsigned int>& chunkIndex : this->chunksToDraw)
 		drawChunk(this->chunks[chunkIndex.first][chunkIndex.second], renderer, useWireframe);
-
+	
+	// TODO: Make this faster!!!
 	float scale = 1.0f;
 	float height = this->infoText.getHeight() * 2.5f * display->getPixelYScale()*scale;
 	this->textRenderer.renderText(this->infoText, -1.0, 1.0 - height, scale, display);
@@ -120,7 +118,7 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 	this->textRenderer.renderText(this->typeText, -1.0, 1.0 - height, scale, display);
 	height += this->maskText.getHeight() * 2.5f * display->getPixelYScale()*scale;
 	this->textRenderer.renderText(this->maskText, -1.0, 1.0 - height, scale, display);
-
+	
 	//this->font.setSize(24);
 	this->textRenderer.renderText("Another test!", -1.0, -1.0, 1.0f, display);
 }
@@ -128,7 +126,7 @@ void Terrain::draw(const Renderer & renderer, Display* display)
 void Terrain::drawChunk(Chunk* chunk, const Renderer& renderer, bool useWireframe)
 {
 	this->terrainShader->bind();
-	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &camera.getMatrix()[0][0]);
+	this->terrainShader->setUniformMatrix4fv("camera", 1, false, &player.getCamera().getMatrix()[0][0]);
 	this->terrainShader->setUniform1i("tileSize", TILE_IMG_SIZE);
 	this->terrainShader->setUniformMatrix3fv("transform", 1, false, &(this->transform[0][0]));
 	this->terrainShader->setTexture2D("tex", 0, ResourceManager::getTexture("Tile Map")->getID());
@@ -139,9 +137,9 @@ void Terrain::drawChunk(Chunk* chunk, const Renderer& renderer, bool useWirefram
 void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 {
 	bool calcDetail = false;
-	Vec3 camPos = camera.getPosition() / TILE_SIZE;
-	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE + 1.0f;
-	float numTilesY = camera.getZoom() / TILE_SIZE + 1.0f;
+	Vec3 camPos = player.getCamera().getPosition() / TILE_SIZE;
+	float numTilesX = player.getCamera().getZoom()*display->getRatio() / TILE_SIZE + 1.0f;
+	float numTilesY = player.getCamera().getZoom() / TILE_SIZE + 1.0f;
 	numTilesX = ceil(numTilesX);
 	numTilesY = ceil(numTilesY);
 	const float numTiles = numTilesX * numTilesY * TILE_LAYERS;
@@ -253,47 +251,8 @@ void Terrain::getTilesToDraw(Display* display, bool useWireframe)
 
 // TODO: MOVE THIS!, Temporary, should be in a separate class or in another class.
 void Terrain::processInput(Display* display)
-{
-	if (Input::isScrolling())
-	{
-		float newZoom = camera.getZoom() + TILE_SIZE * -Input::getScrollYOffest();
-		if(newZoom > 0)
-			camera.setZoom(newZoom);
-		Error::printWarning("Zoom: " + std::to_string(newZoom));
-	}
-
-	static Vec2 prePos(-1, -1);
-	Vec2 dist(0.0, 0.0);
-	Vec2 mPos = Input::getMousePosition();
-	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
-	{
-		if (prePos.x == -1 && prePos.y == -1)
-			prePos = mPos;
-
-		dist = mPos - prePos;
-		Vec3 translation;
-		translation.x = -(float)dist.x / display->getWidth() * camera.getZoom() * display->getRatio();
-		translation.y = (float)dist.y / display->getHeight() * camera.getZoom();
-		camera.move(translation);
-
-		prePos = mPos;
-	}
-	else
-	{
-		prePos.x = -1;
-		prePos.y = -1;
-	}
-
-	if (Input::isKeyClicked(GLFW_KEY_A))
-		camera.move({ -TILE_SIZE, 0.0f, 0.0f });
-	if (Input::isKeyClicked(GLFW_KEY_D))
-		camera.move({ TILE_SIZE, 0.0f, 0.0f });
-	if (Input::isKeyClicked(GLFW_KEY_W))
-		camera.move({ 0.0f, TILE_SIZE, 0.0f });
-	if (Input::isKeyClicked(GLFW_KEY_S))
-		camera.move({ 0.0f, -TILE_SIZE, 0.0f });
-
-	
+{	
+	/*
 	Vec3 camPos = camera.getPosition() / TILE_SIZE;
 	float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
 	float numTilesY = camera.getZoom() / TILE_SIZE;
@@ -333,7 +292,7 @@ void Terrain::processInput(Display* display)
 					this->chunks[(unsigned int)preChunkPos.x][(unsigned int)preChunkPos.y]->updateLayer(FRONT_TILE);
 				}
 				Tile* tileFront = &this->chunks[(unsigned int)chunkIndices.x][(unsigned int)chunkIndices.y]->tiles[FRONT_TILE][0][0];
-				this->infoText.setText("Tile pos: " + Utils::toString(tilePos));
+				this->infoText.setText("Tile pos: " + Utils::toString(tilePos) + ", Chunk: " + std::to_string((unsigned int)chunkIndices.x) + ", " + std::to_string((unsigned int)chunkIndices.y) + ", Index: " + std::to_string((unsigned int)chunkIndices.z) + ", " + std::to_string((unsigned int)chunkIndices.w));
 				this->typeText.setText("Type: " + TileConfig::getStrFromMinUv(tile->minUv));
 				this->maskText.setText("MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask));
 				if (tileFront != nullptr)
@@ -353,7 +312,7 @@ void Terrain::processInput(Display* display)
 			}
 
 			// If RMB is pressed, delete the tile which the mouse is over.
-			if (Input::isButtonClicked(GLFW_MOUSE_BUTTON_RIGHT))
+			if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_RIGHT))
 			{
 				//std::cout << "Tile pos: " << Utils::toString(tilePos) << std::endl << std::endl;// << ", type: " << TileConfig::getStrFromType(tile->type) << ", mask: " << TileConfig::getStrFromMask(tile->mask) << std::endl << std::endl;
 				
@@ -362,10 +321,13 @@ void Terrain::processInput(Display* display)
 				tile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_EMPTY);
 				// Update the shown chunks.
 				this->recalculateMask = true;
+				//tile->minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_STONE_GOLD);
+				//tile->minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
 			}
 		}
 
 	}
+	*/
 }
 
 void Terrain::calculateMaskAndType(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
