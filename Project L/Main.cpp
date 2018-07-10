@@ -54,7 +54,7 @@ int main()
 
 	TextRenderer textRenderer;
 	Font font, fontSmall;
-	Text infoText, typeText, maskText;
+	Text infoText, typeText, maskText, selectText;
 	font.load("./Resources/Fonts/kongtext.ttf", 12, &display);
 	fontSmall.load("./Resources/Fonts/kongtext.ttf", 8, &display);
 	textRenderer.setFont(&font);
@@ -64,6 +64,8 @@ int main()
 	maskText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
 	typeText.setText("Type", &fontSmall);
 	typeText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
+	selectText.setText("Selected: ", &fontSmall);
+	selectText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
 
 	Player player;
 	Terrain terrain;
@@ -99,6 +101,7 @@ int main()
 		player.update(dt, &display, &terrain);
 		terrain.draw(player.getCamera(), renderer, &display);
 
+		selectText.setText("Selected: " + TileConfig::getStrFromType(player.getSelectedTile()));
 		float scale = 1.0f;
 		float height = infoText.getHeight() * 2.5f * display.getPixelYScale()*scale;
 		textRenderer.renderText(infoText, -1.0f, 1.0f - height, scale, &display);
@@ -106,6 +109,8 @@ int main()
 		textRenderer.renderText(typeText, -1.0f, 1.0f - height, scale, &display);
 		height += maskText.getHeight() * 2.5f * display.getPixelYScale()*scale;
 		textRenderer.renderText(maskText, -1.0f, 1.0f - height, scale, &display);
+		height += selectText.getHeight() * 2.5f * display.getPixelYScale()*scale;
+		textRenderer.renderText(selectText, -1.0f, 1.0f - height, scale, &display);
 
 		tileIndexInFocus = player.getTileIndexInFocus();
 		if (tileIndexInFocus.x != -1.0f)

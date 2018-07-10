@@ -27,8 +27,10 @@ public:
 	Chunk* getChunk(unsigned int v, unsigned int h);
 	Tile* getTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);
 	bool removeTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);
+	bool setTile(TileConfig::TILE_TYPE type, unsigned int flags, unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);
 
 	bool removeTile(float x, float y, unsigned int layer);
+	bool setTile(TileConfig::TILE_TYPE type, unsigned int flags, float x, float y, unsigned int layer);
 	bool isPosInsideTerrain(float x, float y) const;
 
 	void updateVisibleChunks();

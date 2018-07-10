@@ -587,6 +587,20 @@ bool Terrain::removeTile(unsigned int v, unsigned int h, unsigned int x, unsigne
 	{
 		tile->minUv = TileConfig::TILE_UV_EMPTY;
 		tile->minUvMask = TileConfig::MASK_UV_EMPTY;
+		tile->flags = 0;
+		return true;
+	}
+	return false;
+}
+
+bool Terrain::setTile(TileConfig::TILE_TYPE type, unsigned int flags, unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer)
+{
+	Tile* tile = getTile(v, h, x, y, layer);
+	if (tile != nullptr)
+	{
+		tile->minUv = TileConfig::getMinUvFromTileType(type);
+		tile->minUvMask = TileConfig::MASK_UV_EMPTY;
+		tile->flags = flags;
 		return true;
 	}
 	return false;
@@ -606,6 +620,25 @@ bool Terrain::removeTile(float x, float y, unsigned int layer)
 	Tile& tile = this->chunks[v][h]->tiles[layer][yc][xc];
 	tile.minUv = TileConfig::TILE_UV_EMPTY;
 	tile.minUvMask = TileConfig::MASK_UV_EMPTY;
+	tile.flags = 0;
+	return true;
+}
+
+bool Terrain::setTile(TileConfig::TILE_TYPE type, unsigned int flags, float x, float y, unsigned int layer)
+{
+	Vec4 chunkIndices = getChunkIndicesFromPos(x, y);
+	if (chunkIndices.x == -1.0f && chunkIndices.y == -1.0f && chunkIndices.z == -1.0f && chunkIndices.w == -1.0f)
+		return false;
+
+	const unsigned int v = (unsigned int)chunkIndices.x;
+	const unsigned int h = (unsigned int)chunkIndices.y;
+	const unsigned int xc = (unsigned int)chunkIndices.z;
+	const unsigned int yc = (unsigned int)chunkIndices.w;
+
+	Tile& tile = this->chunks[v][h]->tiles[layer][yc][xc];
+	tile.minUv = TileConfig::getMinUvFromTileType(type);
+	tile.minUvMask = TileConfig::MASK_UV_EMPTY;
+	tile.flags = flags;
 	return true;
 }
 

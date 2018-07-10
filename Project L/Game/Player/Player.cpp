@@ -6,7 +6,8 @@
 
 Player::Player()
 {
-	camera.setZoom(28.0f);
+	this->camera.setZoom(28.0f);
+	this->selectedTile = TileConfig::TILE_TYPE::TILE_DIRT;
 }
 
 Player::~Player()
@@ -24,9 +25,14 @@ Camera & Player::getCamera()
 	return this->camera;
 }
 
-Vec4 Player::getTileIndexInFocus()
+Vec4 Player::getTileIndexInFocus() const
 {
 	return this->tileIndexInFocus;
+}
+
+TileConfig::TILE_TYPE Player::getSelectedTile() const
+{
+	return this->selectedTile;
 }
 
 void Player::processInput(Display* display, Terrain* terrain)
@@ -34,7 +40,7 @@ void Player::processInput(Display* display, Terrain* terrain)
 	processScrolling();
 
 	Vec2 mPos = Input::getMousePosition();
-	processDraging(display, mPos);
+	processDraging(display, mPos, GLFW_MOUSE_BUTTON_MIDDLE);
 
 	// Cursor tile.
 	Vec2 tilePos = getTilePosFromMousePos(display, mPos);
@@ -72,6 +78,21 @@ void Player::processInput(Display* display, Terrain* terrain)
 		}
 	}
 
+	if (Input::isKeyClicked(GLFW_KEY_Q)) this->selectedTile = (TileConfig::TILE_TYPE)(this->selectedTile - 1);
+	if (Input::isKeyClicked(GLFW_KEY_E)) this->selectedTile = (TileConfig::TILE_TYPE)(this->selectedTile + 1);
+	if (this->selectedTile > TileConfig::TILE_TYPE::MAX_NUM_TYPES - 1)
+		this->selectedTile = (TileConfig::TILE_TYPE)3;
+	else if (this->selectedTile < 3) // Skip empty, wireframe and sky tiles.
+		this->selectedTile = (TileConfig::TILE_TYPE)(TileConfig::TILE_TYPE::MAX_NUM_TYPES - 1);
+
+	// If LMB is pressed, place the selected tile type on the tile which the mouse is over.
+	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
+	{
+		// Place tile
+		if (terrain->setTile(this->selectedTile, this->selectedTile == TileConfig::TILE_GRASS ? TileConfig::FLAG_GROW_TYPE : 0, tilePos.x, tilePos.y, MIDDLE_TILE))
+			terrain->updateVisibleChunks();
+	}
+
 	// If RMB is pressed, delete the tile which the mouse is over.
 	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_RIGHT))
 	{
@@ -94,11 +115,11 @@ void Player::processScrolling()
 	}
 }
 
-void Player::processDraging(Display* display, const Vec2 & mousePosition)
+void Player::processDraging(Display* display, const Vec2 & mousePosition, int button)
 {
 	static Vec2 prePos(-1, -1);
 	static Vec2 dist(0.0, 0.0);
-	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
+	if (Input::isButtonPressed(button))
 	{
 		if (prePos.x == -1 && prePos.y == -1)
 			prePos = mousePosition;
