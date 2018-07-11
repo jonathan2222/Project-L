@@ -20,6 +20,8 @@ public:
 	static Vec3 rotate(const Vec3& v, float x, float y, float z);
 	static Mat3 rotate(const Mat3& m, float x, float y, float z);
 
+	static Mat3 rotation(float angle);
+
 	static Vec4 rotate(const Vec4& v, float angle, const Vec3& axis);
 	static Vec4 rotate(const Vec4& v, float x, float y, float z);
 	static Mat4 rotate(const Mat4& m, float x, float y, float z);

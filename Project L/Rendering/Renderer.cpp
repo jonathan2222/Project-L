@@ -1,6 +1,7 @@
 #include "Renderer.h"
 
 #include "..\Maths\Vectors\Vec2.h"
+#include "..\Maths\Matrices\Mat4.h"
 #include "GL\glew.h"
 #include "../Graphics/Sprite.h"
 
@@ -41,10 +42,11 @@ void Renderer::drawInstanced(GLenum mode, const VertexArray & va, const IndexBuf
 	glDrawElementsInstanced(mode, ib.getCount(), GL_UNSIGNED_INT, 0, instanceCount);
 }
 
-void Renderer::drawSprite(const Sprite & sprite, Shader& shader) const
+void Renderer::drawSprite(const Sprite & sprite, Shader& shader, const Mat4& camera) const
 {
 	shader.bind();
-	shader.setUniformMatrix3fv("matrix", 1, false, &(sprite.getMatrix()[0][0]));
+	shader.setUniformMatrix4fv("camera", 1, false, &(camera[0][0]));
+	shader.setUniformMatrix3fv("transform", 1, false, &(sprite.getMatrix()[0][0]));
 	shader.setUniform3fv("tint", 1, &sprite.getTint()[0]);
 	shader.setTexture2D("tex", 0, sprite.getTexture()->getID());
 	draw(sprite.getModel()->va, sprite.getModel()->ib);

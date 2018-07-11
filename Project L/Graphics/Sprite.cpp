@@ -1,8 +1,9 @@
 #include "Sprite.h"
 
 #include "../Rendering/ModelManager.h"
+#include "../Maths/MathsTransform.h"
 
-Sprite::Sprite(Texture * texture, const Vec2 & position) : position(position), scale(Vec2(1.0f, 1.0f)), tint(Vec3(1.0f, 1.0f, 1.0f))
+Sprite::Sprite(Texture * texture, const Vec2 & position) : position(position), scale(Vec2(1.0f, 1.0f)), tint(Vec3(1.0f, 1.0f, 1.0f)), angle(0.0f)
 {
 	this->texture = texture;
 	this->model = ModelManager::get("RectangleModel");
@@ -10,7 +11,6 @@ Sprite::Sprite(Texture * texture, const Vec2 & position) : position(position), s
 
 void Sprite::setTexture(Texture * texture)
 {
-	this->texture->releaseImage();
 	this->texture = texture;
 }
 
@@ -39,6 +39,11 @@ Vec2 Sprite::getPosition() const
 	return this->position;
 }
 
+float Sprite::getAngle() const
+{
+	return this->angle;
+}
+
 void Sprite::setTint(const Vec3 & tint)
 {
 	this->tint = tint;
@@ -54,7 +59,20 @@ void Sprite::setPosition(const Vec2 & position)
 	this->position = position;
 }
 
+void Sprite::setAngle(float angle)
+{
+	this->angle = angle;
+}
+
 Mat3 Sprite::getMatrix() const
 {
-	return Mat3({this->scale.x, 0.0f, 0.0f}, {0.0f, this->scale.y, 0.0f}, {this->position.x, this->position.y, 1.0f});
+	Mat3 scale(this->scale.x, 0.0f, 0.0f,
+			   0.0f, this->scale.y, 0.0f,
+			   0.0f, 0.0f, 1.0f);
+	Mat3 position(1.0f, 0.0f, this->position.x,
+				0.0f, 1.0f, this->position.y,
+				0.0f, 0.0f, 1.0f);
+	Mat3 rotation = MathsTransform::rotation(this->angle);
+
+	return position*scale*rotation;
 }

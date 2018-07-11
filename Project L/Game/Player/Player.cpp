@@ -86,11 +86,15 @@ void Player::processInput(Display* display, Terrain* terrain)
 		this->selectedTile = (TileConfig::TILE_TYPE)(TileConfig::TILE_TYPE::MAX_NUM_TYPES - 1);
 
 	// If LMB is pressed, place the selected tile type on the tile which the mouse is over.
-	if (Input::isButtonPressed(GLFW_MOUSE_BUTTON_LEFT))
+	if (Input::isButtonClicked(GLFW_MOUSE_BUTTON_LEFT))
 	{
 		// Place tile
 		if (terrain->setTile(this->selectedTile, this->selectedTile == TileConfig::TILE_GRASS ? TileConfig::FLAG_GROW_TYPE : 0, tilePos.x, tilePos.y, MIDDLE_TILE))
+		{
+			//Tile* tile = terrain->getTileFromPos(tilePos.x, tilePos.y, MIDDLE_TILE);
+			//tile->pos.x += 4.0f * TILE_SIZE/TILE_IMG_SIZE;
 			terrain->updateVisibleChunks();
+		}
 	}
 
 	// If RMB is pressed, delete the tile which the mouse is over.
@@ -101,16 +105,16 @@ void Player::processInput(Display* display, Terrain* terrain)
 			terrain->updateVisibleChunks();
 	}
 
-	camera.setZoom(camera.getZoom(), display->getRatio());
+	this->camera.setZoom(this->camera.getZoom(), display->getRatio());
 }
 
 void Player::processScrolling()
 {
 	if (Input::isScrolling())
 	{
-		float newZoom = camera.getZoom() + TILE_SIZE * -Input::getScrollYOffest();
+		float newZoom = this->camera.getZoom() + TILE_SIZE * -Input::getScrollYOffest();
 		if (newZoom > 0)
-			camera.setZoom(newZoom);
+			this->camera.setZoom(newZoom);
 		Error::printWarning("Zoom: " + std::to_string(newZoom));
 	}
 }
@@ -126,9 +130,9 @@ void Player::processDraging(Display* display, const Vec2 & mousePosition, int bu
 
 		dist = mousePosition - prePos;
 		Vec3 translation;
-		translation.x = -(float)dist.x / display->getWidth() * camera.getZoom() * display->getRatio();
-		translation.y = (float)dist.y / display->getHeight() * camera.getZoom();
-		camera.move(translation);
+		translation.x = -(float)dist.x / display->getWidth() * this->camera.getZoom() * display->getRatio();
+		translation.y = (float)dist.y / display->getHeight() * this->camera.getZoom();
+		this->camera.move(translation);
 
 		prePos = mousePosition;
 	}
@@ -145,20 +149,20 @@ void Player::processControls(float dt)
 	static const float SPEED = 10.0f;
 	float adjustedSpeed = TILE_SIZE * dt;
 	if (Input::isKeyPressed(GLFW_KEY_A))
-		camera.move({ -SPEED * adjustedSpeed, 0.0f, 0.0f });
+		this->camera.move({ -SPEED * adjustedSpeed, 0.0f, 0.0f });
 	if (Input::isKeyPressed(GLFW_KEY_D))
-		camera.move({ SPEED * adjustedSpeed, 0.0f, 0.0f });
+		this->camera.move({ SPEED * adjustedSpeed, 0.0f, 0.0f });
 	if (Input::isKeyPressed(GLFW_KEY_W))
-		camera.move({ 0.0f, SPEED * adjustedSpeed, 0.0f });
+		this->camera.move({ 0.0f, SPEED * adjustedSpeed, 0.0f });
 	if (Input::isKeyPressed(GLFW_KEY_S))
-		camera.move({ 0.0f, -SPEED * adjustedSpeed, 0.0f });
+		this->camera.move({ 0.0f, -SPEED * adjustedSpeed, 0.0f });
 }
 
 Vec2 Player::getTilePosFromMousePos(Display * display, const Vec2 & mousePosition)
 {
-	const Vec3 camPos = camera.getPosition() / TILE_SIZE;
-	const float numTilesX = camera.getZoom()*display->getRatio() / TILE_SIZE;
-	const float numTilesY = camera.getZoom() / TILE_SIZE;
+	const Vec3 camPos = this->camera.getPosition() / TILE_SIZE;
+	const float numTilesX = this->camera.getZoom()*display->getRatio() / TILE_SIZE;
+	const float numTilesY = this->camera.getZoom() / TILE_SIZE;
 
 	Vec2 mouseOffset((mousePosition.x / display->getWidth() - 0.5f) * numTilesX, 
 					 (mousePosition.y / display->getHeight() - 0.5f) * numTilesY);

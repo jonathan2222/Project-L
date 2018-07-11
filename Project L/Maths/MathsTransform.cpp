@@ -84,6 +84,15 @@ Mat3 MathsTransform::rotate(const Mat3 & m, float x, float y, float z)
 	return Mat3(rotationMat(x, y, z) * Mat4(m));
 }
 
+Mat3 MathsTransform::rotation(float angle)
+{
+	const float c = cos(angle);
+	const float s = sin(angle);
+	return Mat3(c, -s, 0.0f,
+				s, c, 0.0f,
+				0.0f, 0.0f, 1.0f);
+}
+
 Vec4 MathsTransform::rotate(const Vec4& v, float angle, const Vec3& axis)
 {
 	Vec3 result = rotate(Vec3(v), angle, axis);

@@ -20,10 +20,12 @@ public:
 	Vec3 getTint() const;
 	Vec2 getScale() const;
 	Vec2 getPosition() const;
+	float getAngle() const;
 
 	void setTint(const Vec3& tint);
 	void setScale(const Vec2& scale);
 	void setPosition(const Vec2& position);
+	void setAngle(float angle);
 
 	Mat3 getMatrix() const;
 
@@ -33,6 +35,7 @@ private:
 	Vec3 tint;
 	Vec2 position;
 	Vec2 scale;
+	float angle;
 };
 
 #endif
