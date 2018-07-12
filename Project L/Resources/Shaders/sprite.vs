@@ -12,5 +12,5 @@ void main()
 {	
 	fragUv = uv;
 	fragScale = vec2(transform[0][0], transform[1][1]);
-	gl_Position = camera*vec4((transform*vec3(position, 1.0)).xy, -1.0, 1.0);
+	gl_Position = camera*vec4((transform*vec3(position, 1.0)).xy, -0.5, 1.0);
 }

@@ -36,6 +36,7 @@
 
 #include "Box2D\Box2D.h"
 #include "Graphics\Sprite.h"
+#include "Game\Physics\TerrainCollider.h"
 
 // ---------------------------------------- MAIN ----------------------------------------
 
@@ -71,12 +72,6 @@ int main()
 	selectText.setText("Selected: ", &fontSmall);
 	selectText.setColor({ 0.2f, 0.2f, 0.2f, 1.0f });
 
-	Player player;
-	Terrain terrain;
-	Vec4 tileIndexInFocus;
-	
-	Renderer renderer;
-
 	float dt = 0.0f;
 	Timer dtTimer;
 
@@ -88,29 +83,7 @@ int main()
 
 	b2Vec2 gravity(0.0f, -9.82f);
 	b2World world(gravity);
-
-	// Ground
-	b2BodyDef groundBodyDef;
-	groundBodyDef.position.Set(0.0f, -10.0f);
-	b2Body* groundBody = world.CreateBody(&groundBodyDef);
-	b2PolygonShape groundBox;
-	groundBox.SetAsBox(50.0f, 1.0f); // 100x2 box
-	groundBody->CreateFixture(&groundBox, 0.0f);
-
-	// Define the dynamic body. We set its position and call the body factory.
-	b2BodyDef bodyDef;
-	bodyDef.type = b2_dynamicBody;
-	bodyDef.angle = 3.1415f*0.24f;
-	bodyDef.position.Set(0.0f, 4.0f);
-	b2Body* body = world.CreateBody(&bodyDef);
-	b2PolygonShape dynamicBox;			// Define another box shape for our dynamic body.
-	dynamicBox.SetAsBox(1.0f, 1.0f);	// 2x2 box
-	b2FixtureDef fixtureDef;			// Define the dynamic body fixture.
-	fixtureDef.shape = &dynamicBox;		
-	fixtureDef.density = 1.0f;			// Set the box density to be non-zero, so it will be dynamic.
-	fixtureDef.friction = 0.3f;			// Override the default friction.
-	body->CreateFixture(&fixtureDef);	// Add the shape to the body.
-
+	
 	// Prepare for simulation. Typically we use a time step of 1/60 of a
 	// second (60Hz) and 10 iterations. This provides a high quality simulation
 	// in most game scenarios.
@@ -118,13 +91,20 @@ int main()
 	int32 velocityIterations = 6;
 	int32 positionIterations = 2;
 
-	Text boxPosText("Box pos", &fontSmall);
 	ResourceManager::addTexture("Box 16x16", "Textures/Box.png");
 	Sprite spriteBox(ResourceManager::getTexture("Box 16x16"), Vec2(0.0f, 0.0f));
 	spriteBox.setScale({ 2.0f, 2.0f });
-	Sprite spriteGround(ResourceManager::getTexture("Box 16x16"), Vec2(groundBody->GetPosition().x, groundBody->GetPosition().y));
-	spriteGround.setScale({100.0f, 2.0f});
 	Shader spriteShader("Shaders/sprite.fs", "Shaders/sprite.vs");
+
+	Player player(&world);
+	Terrain terrain;
+	Vec4 tileIndexInFocus;
+
+	Renderer renderer;
+
+	TerrainCollider terrainCollider(&world);
+	terrainCollider.setTerrain(&terrain);
+	terrainCollider.createBodies(player.getCamera().getPosition(), MIDDLE_TILE);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -146,7 +126,21 @@ int main()
 		renderer.bindShader();
 
 		player.update(dt, &display, &terrain);
+		terrainCollider.updateBodies(player.getCamera().getPosition(), MIDDLE_TILE);
 		terrain.draw(player.getCamera(), renderer, &display);
+
+		physicsTimer.update();
+		if (physicsTimer.getTime() >= timeStep)
+		{
+			// Instruct the world to perform a single step of simulation.
+			// It is generally best to keep the time step and iterations fixed.
+			world.Step(timeStep, velocityIterations, positionIterations);
+
+			physicsTimer.restart();
+		}
+		terrainCollider.drawBodies(renderer, spriteShader, player.getCamera().getMatrix());
+		renderer.drawSprite(player.getSprite(), spriteShader, player.getCamera().getMatrix());
+
 		
 		selectText.setText("Selected: " + TileConfig::getStrFromType(player.getSelectedTile()));
 		float scale = 1.0f;
@@ -158,9 +152,6 @@ int main()
 		textRenderer.renderText(maskText, -1.0f, 1.0f - height, scale, &display);
 		height += selectText.getHeight() * 2.5f * display.getPixelYScale()*scale;
 		textRenderer.renderText(selectText, -1.0f, 1.0f - height, scale, &display);
-
-		height += boxPosText.getHeight() * 2.5f * display.getPixelYScale()*scale;
-		textRenderer.renderText(boxPosText, -1.0f, 1.0f - height, scale, &display);
 		
 		tileIndexInFocus = player.getTileIndexInFocus();
 		if (tileIndexInFocus.x != -1.0f)
@@ -174,27 +165,7 @@ int main()
 			typeText.setText("Type: " + TileConfig::getStrFromMinUv(tile->minUv));
 			maskText.setText("MASK: " + TileConfig::getStrFromMinUvMask(tile->minUvMask));
 		}
-
-		physicsTimer.update();
-		if (physicsTimer.getTime() >= timeStep)
-		{
-			// Instruct the world to perform a single step of simulation.
-			// It is generally best to keep the time step and iterations fixed.
-			world.Step(timeStep, velocityIterations, positionIterations);
-
-			// Now print the position and angle of the body.
-			b2Vec2 position = body->GetPosition();
-			float32 angle = body->GetAngle();
-
-			spriteBox.setPosition(Vec2(position.x, position.y));
-			spriteBox.setAngle(angle);
-
-			boxPosText.setText("Box pos: " + std::to_string(position.x) + ", " + std::to_string(position.y) + ", angle: " + std::to_string(angle));
-			physicsTimer.restart();
-		}
-		renderer.drawSprite(spriteBox, spriteShader, player.getCamera().getMatrix());
-		renderer.drawSprite(spriteGround, spriteShader, player.getCamera().getMatrix());
-
+		
 		//this->font.setSize(24);
 		textRenderer.renderText("Another test!", -1.0, -1.0, 1.0f, &display);
 

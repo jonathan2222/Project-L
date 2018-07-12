@@ -11,6 +11,7 @@
 class Sprite
 {
 public:
+	Sprite();
 	Sprite(Texture* image, const Vec2& position);
 	void setTexture(Texture* image);
 

@@ -131,6 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\Physics\TerrainCollider.cpp" />
     <ClCompile Include="Game\Player\Camera.cpp" />
     <ClCompile Include="Game\Player\Player.cpp" />
     <ClCompile Include="Game\Terrain\Chunk.cpp" />
@@ -165,6 +166,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameConfig.h" />
+    <ClInclude Include="Game\Physics\TerrainCollider.h" />
     <ClInclude Include="Game\Player\Camera.h" />
     <ClInclude Include="Game\Player\Player.h" />
     <ClInclude Include="Game\Terrain\Chunk.h" />

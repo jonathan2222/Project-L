@@ -93,7 +93,7 @@ public:
 	/*
 	Return nullptr if no default texture was found.
 	*/
-	static const Texture* getDefaultTexture()
+	static Texture* getDefaultTexture()
 	{
 		if (defaultTexture == nullptr)
 			return nullptr;

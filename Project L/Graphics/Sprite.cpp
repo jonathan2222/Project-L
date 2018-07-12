@@ -3,6 +3,11 @@
 #include "../Rendering/ModelManager.h"
 #include "../Maths/MathsTransform.h"
 
+Sprite::Sprite() : position(Vec2(0.0f, 0.0f)), scale(Vec2(1.0f, 1.0f)), tint(Vec3(1.0f, 1.0f, 1.0f)), angle(0.0f), texture(nullptr)
+{
+	this->model = ModelManager::get("RectangleModel");
+}
+
 Sprite::Sprite(Texture * texture, const Vec2 & position) : position(position), scale(Vec2(1.0f, 1.0f)), tint(Vec3(1.0f, 1.0f, 1.0f)), angle(0.0f)
 {
 	this->texture = texture;

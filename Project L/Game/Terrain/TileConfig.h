@@ -12,6 +12,8 @@
 struct TileConfig
 {
 	static const unsigned int FLAG_GROW_TYPE = 1;
+	static const unsigned int FLAG_COLLIDABLE = 2;
+
 	static const Vec2 TILE_UV_EMPTY;
 	static const Vec2 MASK_UV_EMPTY;
 

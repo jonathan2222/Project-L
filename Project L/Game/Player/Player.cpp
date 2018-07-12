@@ -4,10 +4,31 @@
 #include "../../Utils/Error.h"
 #include "../../Input/Input.h"
 
-Player::Player()
+#include "../../ResourceManager.h"
+#include "../Physics/TerrainCollider.h"
+
+Player::Player(b2World* world)
 {
 	this->camera.setZoom(28.0f);
 	this->selectedTile = TileConfig::TILE_TYPE::TILE_DIRT;
+	this->sprite.setTexture(ResourceManager::getDefaultTexture());
+	//this->sprite.setScale(Vec2(1.5f, 2.5f));
+	this->sprite.setScale(Vec2(1.5f, 1.5f));
+
+	b2BodyDef bodyDef;
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.angle = 0.0f;
+	bodyDef.position.Set(0.0f, 10.0f);
+	this->body = world->CreateBody(&bodyDef);
+	b2PolygonShape dynamicBox;			// Define another box shape for our dynamic body.
+	//dynamicBox.SetAsBox(0.75f, 1.25f);	// 1.5x2.5 box
+	dynamicBox.SetAsBox(0.75f, 0.75f);
+	b2FixtureDef fixtureDef;			// Define the dynamic body fixture.
+	fixtureDef.shape = &dynamicBox;
+	fixtureDef.density = 5.0f;			// Set the box density to be non-zero, so it will be dynamic.
+	fixtureDef.friction = 1.0f;			// Override the default friction.
+	fixtureDef.filter.maskBits = BODY_FILLED;
+	this->body->CreateFixture(&fixtureDef);	// Add the shape to the body.
 }
 
 Player::~Player()
@@ -16,8 +37,10 @@ Player::~Player()
 
 void Player::update(float dt, Display* display, Terrain* terrain)
 {
+	this->camera.setPosition(Vec2(this->body->GetPosition().x, this->body->GetPosition().y));
 	processInput(display, terrain);
 	processControls(dt);
+	this->sprite.setAngle(this->body->GetAngle());
 }
 
 Camera & Player::getCamera()
@@ -33,6 +56,11 @@ Vec4 Player::getTileIndexInFocus() const
 TileConfig::TILE_TYPE Player::getSelectedTile() const
 {
 	return this->selectedTile;
+}
+
+Sprite & Player::getSprite()
+{
+	return this->sprite;
 }
 
 void Player::processInput(Display* display, Terrain* terrain)
@@ -148,14 +176,32 @@ void Player::processControls(float dt)
 	// Fix this to be consistent.
 	static const float SPEED = 10.0f;
 	float adjustedSpeed = TILE_SIZE * dt;
+	Vec2 impulse;
 	if (Input::isKeyPressed(GLFW_KEY_A))
+	{
 		this->camera.move({ -SPEED * adjustedSpeed, 0.0f, 0.0f });
+		impulse.x = -SPEED;
+	}
 	if (Input::isKeyPressed(GLFW_KEY_D))
+	{
 		this->camera.move({ SPEED * adjustedSpeed, 0.0f, 0.0f });
+		impulse.x = SPEED;
+	}
 	if (Input::isKeyPressed(GLFW_KEY_W))
+	{
 		this->camera.move({ 0.0f, SPEED * adjustedSpeed, 0.0f });
+		impulse.y = SPEED;
+	}
 	if (Input::isKeyPressed(GLFW_KEY_S))
+	{
 		this->camera.move({ 0.0f, -SPEED * adjustedSpeed, 0.0f });
+		impulse.y = -SPEED;
+	}
+
+	//this->body->ApplyForceToCenter(b2Vec2(impulse.x*5.0f, impulse.y*5.0f), false);
+	this->body->ApplyLinearImpulseToCenter(b2Vec2(impulse.x, impulse.y), false);
+	//this->body->SetTransform(b2Vec2(this->camera.getPosition().x, this->camera.getPosition().y), this->body->GetAngle());
+	this->sprite.setPosition(Vec2(this->camera.getPosition().x, this->camera.getPosition().y));
 }
 
 Vec2 Player::getTilePosFromMousePos(Display * display, const Vec2 & mousePosition)

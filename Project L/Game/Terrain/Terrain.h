@@ -22,7 +22,7 @@ public:
 
 	// (v, h, xc, yc)
 	Vec4 getChunkIndicesFromPos(float x, float y);
-	Tile* getTileFromPos(float x, float y, unsigned int layer);
+	Tile* getTile(float x, float y, unsigned int layer);
 
 	Chunk* getChunk(unsigned int v, unsigned int h);
 	Tile* getTile(unsigned int v, unsigned int h, unsigned int x, unsigned int y, unsigned int layer);

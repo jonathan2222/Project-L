@@ -50,10 +50,18 @@ Terrain::Terrain()
 					if (noise == tile.pos.y)
 					{
 						tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_GRASS);
-						tile.flags = TileConfig::FLAG_GROW_TYPE;
+						tile.flags = TileConfig::FLAG_GROW_TYPE | TileConfig::FLAG_COLLIDABLE;
 					}
-					else if (noise > tile.pos.y) tile.minUv =TileConfig::getMinUvFromTileType(TileConfig::TILE_DIRT);
-					if (noise- padding > tile.pos.y) tile.minUv = TileConfig::getMinUvFromTileType(rand()%5 == 0 ? (rand() % 5 == 0 ? TileConfig::TILE_STONE_GOLD : (rand()%4 == 0 ?TileConfig::TILE_STONE_2 : TileConfig::TILE_STONE_3)) : TileConfig::TILE_STONE);
+					else if (noise > tile.pos.y)
+					{
+						tile.minUv = TileConfig::getMinUvFromTileType(TileConfig::TILE_DIRT);
+						tile.flags = TileConfig::FLAG_COLLIDABLE;
+					}
+					if (noise - padding > tile.pos.y)
+					{
+						tile.minUv = TileConfig::getMinUvFromTileType(rand() % 5 == 0 ? (rand() % 5 == 0 ? TileConfig::TILE_STONE_GOLD : (rand() % 4 == 0 ? TileConfig::TILE_STONE_2 : TileConfig::TILE_STONE_3)) : TileConfig::TILE_STONE);
+						tile.flags = TileConfig::FLAG_COLLIDABLE;
+					}
 					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((xc+yc)%((int)TileConfig::MAX_NUM_TYPES - 3) + 3));
 					//tile.minUv = TileConfig::getMinUvFromTileType((TileConfig::TILE_TYPE)((v+h+xc + yc) % (int)TileConfig::MAX_NUM_TYPES));
 
@@ -193,10 +201,10 @@ bool Terrain::calculateMask()
 
 void Terrain::calculateMask(unsigned int flags, Vec2 minUv, Vec2& minUv2, Vec2& minUvMask, float x, float y, unsigned int layer)
 {
-	Tile* left = getTileFromPos(x - 1, y, layer);
-	Tile* right = getTileFromPos(x + 1, y, layer);
-	Tile* up = getTileFromPos(x, y + 1, layer);
-	Tile* down = getTileFromPos(x, y - 1, layer);
+	Tile* left = getTile(x - 1, y, layer);
+	Tile* right = getTile(x + 1, y, layer);
+	Tile* up = getTile(x, y + 1, layer);
+	Tile* down = getTile(x, y - 1, layer);
 	if (TILE_EXIST(down) && TILE_EXIST(up) && TILE_EXIST(left) && TILE_EXIST(right))
 	{
 		minUvMask = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
@@ -367,10 +375,10 @@ void Terrain::calculateDetail()
 
 void Terrain::calculateDetail(unsigned int flags, Vec2 minUv, Vec2& minUvLeft, Vec2& minUvRight, Vec2& minUvUp, Vec2& minUvDown, Vec4& maskSide, unsigned int& corners, float x, float y, unsigned int layer)
 {
-	Tile* left = getTileFromPos(x - 1, y, layer);
-	Tile* right = getTileFromPos(x + 1, y, layer);
-	Tile* up = getTileFromPos(x, y + 1, layer);
-	Tile* down = getTileFromPos(x, y - 1, layer);
+	Tile* left = getTile(x - 1, y, layer);
+	Tile* right = getTile(x + 1, y, layer);
+	Tile* up = getTile(x, y + 1, layer);
+	Tile* down = getTile(x, y - 1, layer);
 
 	static const Vec2 MASK_UV_PATCH_FULL = TileConfig::getMinUvMaskFromTileMask(TileConfig::MASK_PATCH_FULL);
 
@@ -556,7 +564,7 @@ Vec4 Terrain::getChunkIndicesFromPos(float x, float y)
 	return Vec4((float)v, (float)h, (float)xc, (float)yc);
 }
 
-Tile* Terrain::getTileFromPos(float x, float y, unsigned int layer)
+Tile* Terrain::getTile(float x, float y, unsigned int layer)
 {
 	Vec4 chunkIndices = getChunkIndicesFromPos(x, y);
 	if (chunkIndices.x == -1.0f && chunkIndices.y == -1.0f && chunkIndices.z == -1.0f && chunkIndices.w == -1.0f)
